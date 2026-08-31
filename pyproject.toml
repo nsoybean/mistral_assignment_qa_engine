@@ -1,0 +1,50 @@
+[project]
+name = "my-search-project"
+version = "0.1.0"
+description = "A Mistral Search Toolkit project"
+requires-python = ">=3.12,<3.15"
+dependencies = [
+    # Shared across backends: the MCP server (entrypoints/mcp_server.py) is
+    # backend-agnostic (routes through search_app.get_index) and ships on both.
+    "fastmcp>=3.3.1",
+    "httpx>=0.27",
+    # Pinned exactly, and core and the vespa plugin are released in lockstep on the same version
+    # number. The `vespa` extra pulls the plugin, whose own dependency on core carries no lower
+    # bound -- so a core pin left behind a plugin release resolves to a pair that imports names
+    # the older core does not have. Bump both by bumping this.
+    "mistralai-search-toolkit[text-splitter-langchain,vespa]==0.0.11",
+    "python-dotenv>=0.9.9",
+]
+
+[project.optional-dependencies]
+workflows = [
+    "mistralai-workflows[mistralai]>=3.0.0,<4",
+    "pydantic",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.11",
+    "mypy>=1.15",
+    # `make test` round-trips a document through the backend; see tests/.
+    "pytest>=8.0",
+]
+
+[tool.uv]
+exclude-newer = "7 days"
+# Gemfury (UV_EXTRA_INDEX_URL) may list older versions of mistral-common /
+# mistralai-search-toolkit than PyPI. Allow uv to pick the best match across indexes.
+index-strategy = "unsafe-best-match"
+
+[tool.uv.exclude-newer-package]
+mistralai = false
+"mistral-common" = false
+"mistralai-search-toolkit" = false
+"mistralai-search-toolkit-plugins-vespa" = false
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/entrypoints", "src/search_app", "src/examples"]

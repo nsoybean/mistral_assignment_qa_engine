@@ -1,0 +1,4 @@
+Hello from the Mistral Search Toolkit starter app.
+
+This sample document is indexed with PlainTextExtractor — no OCR required.
+Try searching for "Mistral Search Toolkit" after running `make ingest`.

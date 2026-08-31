@@ -1,0 +1,32 @@
+# Local Vespa for development.
+# Query API: http://localhost:${VESPA_QUERY_PORT:-18080}  (.env VESPA_QUERY_PORT)
+# Config server: http://localhost:${VESPA_CONFIG_PORT:-19072}  (.env VESPA_CONFIG_PORT)
+
+services:
+  vespa:
+    image: vespaengine/vespa:latest
+    container_name: my-search-project-vespa
+    hostname: my-search-project-vespa
+    ports:
+      - "${VESPA_QUERY_PORT:-18080}:8080"
+      - "${VESPA_CONFIG_PORT:-19072}:19071"
+    volumes:
+      - vespa-data:/opt/vespa/var
+    environment:
+      - VESPA_CONFIGSERVERS=my-search-project-vespa
+      - VESPA_HOSTNAME=my-search-project-vespa
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 2G
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:19071/state/v1/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+volumes:
+  vespa-data:
