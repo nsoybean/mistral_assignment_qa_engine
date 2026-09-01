@@ -1,0 +1,13 @@
+{
+  "url": "https://docs.mistral.ai/studio/conversations/vision",
+  "title": "Vision",
+  "breadcrumb": [
+    "Studio"
+  ],
+  "heading_anchors": {
+    "before you start": "before-you-start",
+    "sending an image": "passing-an-image",
+    "use cases": "use-cases",
+    "faq": "faq"
+  }
+}

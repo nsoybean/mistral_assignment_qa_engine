@@ -1,4 +1,4 @@
-"""Parse a Mistral docs HTML page into markdown chunks with citation metadata.
+"""Parse Mistral docs HTML into markdown chunks with citation metadata.
 
 Studio pages do not use ``<h2>`` for visible section titles. Each section is a
 ``div[data-slot=section-tab][id=...]`` (the "Copy section link" target) plus a
@@ -6,25 +6,38 @@ screen-reader ``<h2>``/``<h3>``. We drop the tab chrome, keep the sr-only
 headings, convert with the toolkit HTMLExtractor, then split on markdown
 headers.
 
-This module does not embed or index — use it to inspect extraction before
-wiring ingest.
+**Workflow**
+
+1. ``preprocess_docs_page`` — fetch a live URL, run ``isolate_article``, write
+   isolated HTML + ``.meta.json`` under ``sample_data/mistral_docs/``.
+2. ``ingest`` — ``FilesystemFileLoader`` / ``DocsHTMLFileLoader`` +
+   ``HTMLExtractor`` on those local files, then split, enrich, embed, index.
 """
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass, field
+from pathlib import Path
+from typing import override
 from urllib.parse import urldefrag, urljoin, urlparse
 
 import httpx
 from bs4 import BeautifulSoup, Tag
+from mistralai.search.toolkit.context import IngestContext
 from mistralai.search.toolkit.document import Document, DocumentChunk
 from mistralai.search.toolkit.ingestion import File
 from mistralai.search.toolkit.ingestion.extractors import HTMLExtractor
+from mistralai.search.toolkit.ingestion.loaders import FileLoader
+from mistralai.search.toolkit.ingestion.processor import DocumentProcessor
 from mistralai.search.toolkit.ingestion.text_splitters import (
     MarkdownTextSplitter,
     MarkdownTextSplitterConfig,
 )
+
+DOCS_HOST = "docs.mistral.ai"
+DEFAULT_SAMPLE_DIR = Path("sample_data/mistral_docs")
 
 _HEADING_LINE_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
 _SLUG_STRIP_RE = re.compile(r"[^\w\s-]", re.UNICODE)
@@ -57,6 +70,213 @@ def markdown_splitter_config(
         chunk_size=chunk_size,
         chunk_max_size=chunk_max_size,
         chunk_overlap=overlap,
+    )
+
+
+@dataclass(frozen=True)
+class DocsPageMeta:
+    """Sidecar metadata written next to a preprocessed HTML file."""
+
+    url: str
+    title: str
+    breadcrumb: tuple[str, ...] = ()
+    heading_anchors: dict[str, str] = field(default_factory=dict)
+
+    def to_json(self) -> str:
+        return (
+            json.dumps(
+                {
+                    "url": self.url,
+                    "title": self.title,
+                    "breadcrumb": list(self.breadcrumb),
+                    "heading_anchors": self.heading_anchors,
+                },
+                indent=2,
+                ensure_ascii=False,
+            )
+            + "\n"
+        )
+
+    @classmethod
+    def from_json(cls, text: str) -> DocsPageMeta:
+        data = json.loads(text)
+        return cls(
+            url=data["url"],
+            title=data["title"],
+            breadcrumb=tuple(data.get("breadcrumb", [])),
+            heading_anchors=dict(data.get("heading_anchors", {})),
+        )
+
+
+def validate_docs_url(url: str) -> None:
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(f"URL must be http(s): {url!r}")
+    if parsed.netloc != DOCS_HOST:
+        raise ValueError(f"Only {DOCS_HOST} URLs are supported, got: {url!r}")
+
+
+def docs_paths_for_url(
+    url: str, output_dir: Path = DEFAULT_SAMPLE_DIR
+) -> tuple[Path, Path]:
+    """Map a docs URL to ``(<page>.html, <page>.meta.json)`` under ``output_dir``."""
+    validate_docs_url(url)
+    path = urlparse(url).path.rstrip("/")
+    if not path:
+        raise ValueError(f"URL has no document path: {url!r}")
+    rel = path.lstrip("/")
+    html_path = output_dir / f"{rel}.html"
+    meta_path = output_dir / f"{rel}.meta.json"
+    return html_path, meta_path
+
+
+def meta_path_for_html(html_path: Path) -> Path:
+    return html_path.with_suffix(".meta.json")
+
+
+def is_preprocessed_docs_html(path: Path) -> bool:
+    return path.suffix.lower() == ".html" and meta_path_for_html(path).is_file()
+
+
+def load_docs_meta(html_path: Path) -> DocsPageMeta:
+    meta_path = meta_path_for_html(html_path)
+    if not meta_path.is_file():
+        raise FileNotFoundError(
+            f"Missing sidecar metadata for {html_path}: {meta_path}"
+        )
+    return DocsPageMeta.from_json(meta_path.read_text(encoding="utf-8"))
+
+
+async def preprocess_docs_page(
+    url: str,
+    output_dir: Path = DEFAULT_SAMPLE_DIR,
+    *,
+    html: str | None = None,
+) -> tuple[Path, Path]:
+    """Fetch (unless ``html`` given), isolate article HTML, and save under ``output_dir``."""
+    validate_docs_url(url)
+    raw_html = html if html is not None else await fetch_html(url)
+    title, breadcrumb, article_html, heading_anchors = isolate_article(raw_html, url)
+    html_path, meta_path = docs_paths_for_url(url, output_dir)
+    html_path.parent.mkdir(parents=True, exist_ok=True)
+    html_path.write_text(article_html, encoding="utf-8")
+    meta = DocsPageMeta(
+        url=url,
+        title=title,
+        breadcrumb=breadcrumb,
+        heading_anchors=heading_anchors,
+    )
+    meta_path.write_text(meta.to_json(), encoding="utf-8")
+    return html_path, meta_path
+
+
+class DocsHTMLFileLoader(FileLoader):
+    """Custom file loader for preprocessed docs HTML; ``source_id`` is the canonical page URL from ``.meta.json``."""
+
+    @override
+    async def load_file(self, path: Path, context: IngestContext | None = None) -> File:
+        _ = context
+        meta = load_docs_meta(path)
+        return File(
+            path=meta.url,
+            name=path.name,
+            raw=path.read_bytes(),
+            source_id=meta.url,
+        )
+
+
+class DocsChunkEnricher(DocumentProcessor):
+    """Stamp citation metadata on chunks after heading-aware splitting."""
+
+    def __init__(self, meta: DocsPageMeta) -> None:
+        self._meta = meta
+
+    @override
+    async def process(
+        self, document: Document, context: IngestContext | None = None
+    ) -> Document:
+        _ = context
+        chunks = _enrich_chunks(
+            list(document.chunks),
+            page_url=self._meta.url,
+            title=self._meta.title,
+            heading_anchors=self._meta.heading_anchors,
+        )
+        return document.model_copy(
+            update={"source_id": self._meta.url, "chunks": list(chunks)}
+        )
+
+
+def docs_markdown_splitter() -> MarkdownTextSplitter:
+    return MarkdownTextSplitter(markdown_splitter_config())
+
+
+def build_docs_html_pipeline(
+    html_path: Path,
+    *,
+    embedder,
+    stores,
+):
+    """Build a per-file docs ingest ``Pipeline`` (FileLoader → HTMLExtractor → split → enrich)."""
+    meta = load_docs_meta(html_path)
+    from mistralai.search.toolkit.ingestion.pipelines import Pipeline
+
+    return Pipeline(
+        loader=DocsHTMLFileLoader(),
+        extractor=HTMLExtractor(),
+        text_splitter=docs_markdown_splitter(),
+        processors=[DocsChunkEnricher(meta)],
+        embedder=embedder,
+        stores=stores,
+    )
+
+
+async def parse_saved_docs_page(
+    html_path: Path,
+    *,
+    chunk_size: int = DEFAULT_CHUNK_SIZE,
+    chunk_max_size: int | None = DEFAULT_CHUNK_MAX_SIZE,
+    chunk_overlap: int = DEFAULT_CHUNK_OVERLAP,
+) -> DocsPage:
+    """Parse a preprocessed local HTML file (already passed through ``isolate_article``)."""
+    meta = load_docs_meta(html_path)
+    article_html = html_path.read_text(encoding="utf-8")
+
+    extractor = HTMLExtractor()
+    file = File(
+        path=meta.url,
+        name=html_path.name,
+        raw=article_html.encode("utf-8"),
+        source_id=meta.url,
+    )
+    document = await extractor.extract(file)
+
+    splitter = MarkdownTextSplitter(
+        markdown_splitter_config(
+            chunk_size=chunk_size,
+            chunk_max_size=chunk_max_size,
+            chunk_overlap=chunk_overlap,
+        )
+    )
+    document = await splitter.process(document)
+
+    chunks = _enrich_chunks(
+        list(document.chunks),
+        page_url=meta.url,
+        title=meta.title,
+        heading_anchors=meta.heading_anchors,
+    )
+    document = document.model_copy(
+        update={"source_id": meta.url, "chunks": list(chunks)}
+    )
+    return DocsPage(
+        url=meta.url,
+        title=meta.title,
+        breadcrumb=meta.breadcrumb,
+        html=article_html,
+        markdown=document.content or "",
+        document=document,
+        chunks=chunks,
     )
 
 
@@ -144,7 +364,9 @@ def _lift_section_headings(root: Tag) -> None:
         tab.decompose()
 
 
-def isolate_article(html: str, page_url: str) -> tuple[str, tuple[str, ...], str, dict[str, str]]:
+def isolate_article(
+    html: str, page_url: str
+) -> tuple[str, tuple[str, ...], str, dict[str, str]]:
     """Return ``(title, breadcrumb, article HTML, heading_anchors)`` for ``HTMLExtractor``.
 
     Steps:

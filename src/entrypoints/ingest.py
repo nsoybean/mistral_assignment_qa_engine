@@ -1,7 +1,8 @@
-"""Ingest a local document into the configured search backend.
+"""Ingest local documents into the configured search backend.
 
 Usage:
     python -m entrypoints.ingest <file_path>
+    python -m entrypoints.ingest sample_data/mistral_docs
 """
 
 import argparse
@@ -23,6 +24,7 @@ from mistralai.search.toolkit.ingestion.text_splitters import (
     MarkdownTextSplitterConfig,
 )
 from search_app import get_index
+from search_app.docs_html import build_docs_html_pipeline, is_preprocessed_docs_html
 
 load_dotenv(override=True)
 
@@ -84,15 +86,24 @@ async def main() -> None:
         stores=vector_store,
     )
 
-    documents = _collect_documents(root)
+    documents = [
+        p for p in _collect_documents(root) if p.suffix.lower() != ".meta.json"
+    ]
 
     total_chunks = 0
     for doc_path in documents:
-        if doc_path.suffix.lower() in _TEXT_SUFFIXES:
+        if is_preprocessed_docs_html(doc_path):
+            pipeline = build_docs_html_pipeline(
+                doc_path, embedder=embedder, stores=vector_store
+            )
+            kind = "docs-html"
+        elif doc_path.suffix.lower() in _TEXT_SUFFIXES:
             pipeline = plain_text_pipeline
+            kind = doc_path.suffix
         else:
             pipeline = ocr_pipeline
-        print(f"Processing: {doc_path}")
+            kind = doc_path.suffix
+        print(f"Processing ({kind}): {doc_path}")
         total_chunks += await pipeline.run(documents=[doc_path], use_checkpoint=False)
 
     print(

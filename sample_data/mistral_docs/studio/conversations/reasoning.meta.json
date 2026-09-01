@@ -1,0 +1,16 @@
+{
+  "url": "https://docs.mistral.ai/studio/conversations/reasoning",
+  "title": "Reasoning",
+  "breadcrumb": [
+    "Studio"
+  ],
+  "heading_anchors": {
+    "before you start": "before-you-start",
+    "usage": "usage",
+    "reasoning with chat completions": "reasoning-with-chat-completions",
+    "handling thinking chunks": "handling-thinking-chunks",
+    "parsing the response": "parsing-response",
+    "streaming": "streaming",
+    "multi-turn conversations": "multi-turn"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "url": "https://docs.mistral.ai/studio/conversations/function-calling",
+  "title": "Function Calling",
+  "breadcrumb": [
+    "Studio"
+  ],
+  "heading_anchors": {
+    "before you start": "before-you-start",
+    "five steps": "five-steps",
+    "step 1. developer": "step-1",
+    "step 2. user": "step-2",
+    "step 3. model": "step-3",
+    "step 4. developer": "step-4",
+    "step 5. model": "step-5",
+    "full example": "full-example",
+    "more": "more"
+  }
+}

@@ -33,11 +33,25 @@ make setup-vespa
 
 ### Ingest documents
 
-Uses two `Pipeline` instances (plain-text vs OCR) shared across a file or directory ingest. Text files use `PlainTextExtractor`; other files (e.g. PDFs) use `MistralOCRExtractor` (requires `MISTRAL_API_KEY`).
+Pre-processed Mistral docs HTML lives under `sample_data/mistral_docs/` (isolated article HTML + `.meta.json` sidecars). Ingest uses `DocsHTMLFileLoader` → `HTMLExtractor` → heading-aware split → citation metadata → embed → Vespa.
+
+```bash
+make setup-vespa
+make ingest path=sample_data/mistral_docs
+```
+
+Other local files still use plain-text or OCR pipelines:
 
 ```bash
 make ingest path=sample_data/hello.txt
 make ingest path=sample_data
+```
+
+To refresh docs HTML from the live site (requires network):
+
+```bash
+make preprocess-docs
+make preprocess-docs url="https://docs.mistral.ai/studio/conversations/reasoning"
 ```
 
 ### Search the collection
@@ -114,6 +128,8 @@ make generate-vespa-lock
 src/
 ├── entrypoints/
 │   ├── ingest.py      # mistralai.search.toolkit.ingestion.pipelines.Pipeline
+│   ├── preprocess_docs.py  # fetch docs.mistral.ai → sample_data/mistral_docs/
+│   ├── preview_docs.py     # inspect HTML extraction (no Vespa)
 │   ├── mcp_server.py  # MCP server (search + navigation + ingest tools)
 │   └── search.py      # mistralai.search.toolkit.retrieval.QueryEngine
 └── search_app/

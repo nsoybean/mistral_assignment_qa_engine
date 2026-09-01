@@ -1,0 +1,14 @@
+{
+  "url": "https://docs.mistral.ai/studio/conversations/chat-completion",
+  "title": "Chat completions",
+  "breadcrumb": [
+    "Studio"
+  ],
+  "heading_anchors": {
+    "chat completion": "chat-completion",
+    "chat messages": "chat-messages",
+    "multi-turn": "multi-turn",
+    "other useful features": "other-useful-features",
+    "more": "more"
+  }
+}

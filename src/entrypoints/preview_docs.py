@@ -188,7 +188,7 @@ def main() -> None:
     parser.add_argument(
         "--raw",
         action="store_true",
-        help="Skip isolate_article; run HTMLExtractor on the full page HTML.",
+        help="Dev only: skip isolate_article; run HTMLExtractor on the full page HTML.",
     )
     parser.add_argument(
         "--content",

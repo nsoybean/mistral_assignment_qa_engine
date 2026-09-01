@@ -1,0 +1,8 @@
+# Mistral docs pages to pre-process into sample_data/mistral_docs/
+# Run: make preprocess-docs
+
+https://docs.mistral.ai/studio/conversations/chat-completion
+https://docs.mistral.ai/studio/conversations/reasoning
+https://docs.mistral.ai/studio/conversations/vision
+https://docs.mistral.ai/studio/conversations/function-calling
+https://docs.mistral.ai/agents/agents

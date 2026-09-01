@@ -1,4 +1,4 @@
-.PHONY: installdeps install-workflows ingest search mcp preview-docs test start-examples execute-ingestion
+.PHONY: installdeps install-workflows ingest search mcp preview-docs preprocess-docs test start-examples execute-ingestion
 .PHONY: setup-vespa start-vespa verify-vespa stop-vespa reset-vespa migrate-vespa bruno generate-vespa-lock
 
 ifneq (,$(wildcard .env))
@@ -48,8 +48,17 @@ migrate-vespa: verify-vespa
 ## Ingest a file or directory (Search Toolkit Pipeline)
 ## Usage: make ingest path=sample_data/hello.txt
 ##        make ingest path=sample_data
+##        make ingest path=sample_data/mistral_docs
 ingest:
 	uv run python -m entrypoints.ingest $(path)
+
+## Fetch docs.mistral.ai pages and save isolated HTML under sample_data/mistral_docs/
+## Usage: make preprocess-docs
+##        make preprocess-docs url="https://docs.mistral.ai/studio/conversations/reasoning"
+preprocess-docs:
+	uv run python -m entrypoints.preprocess_docs \
+		$(if $(url),--url $(url),--urls-file sample_data/urls.txt) \
+		$(if $(output),--output $(output),)
 
 ## Search the indexed collection (Search Toolkit QueryEngine)
 ## Usage: make search query="hello world" [top_k=5] [query_profile=hybrid-search]
