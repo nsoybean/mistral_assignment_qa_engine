@@ -65,6 +65,7 @@ async def main() -> None:
         print(f"\n--- Result {i} ---")
         print(f"Score: {hit.score}")
         print(f"Content: {preview}")
+        print(f"Metadata: {hit.chunk.metadata}")
 
 
 if __name__ == "__main__":
