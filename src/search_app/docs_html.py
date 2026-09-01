@@ -337,7 +337,7 @@ def _heading_anchors(root: Tag) -> dict[str, str]:
 async def fetch_html(url: str, *, timeout: float = 30.0) -> str:
     async with httpx.AsyncClient(follow_redirects=True, timeout=timeout) as client:
         response = await client.get(
-            url, headers={"User-Agent": "mistral-docs-preview/0.1"}
+            url, headers={"User-Agent": "mistral-docs-fetch/0.1"}
         )
         response.raise_for_status()
         return response.text

@@ -129,7 +129,6 @@ src/
 ├── entrypoints/
 │   ├── ingest.py      # mistralai.search.toolkit.ingestion.pipelines.Pipeline
 │   ├── preprocess_docs.py  # fetch docs.mistral.ai → sample_data/mistral_docs/
-│   ├── preview_docs.py     # inspect HTML extraction (no Vespa)
 │   ├── mcp_server.py  # MCP server (search + navigation + ingest tools)
 │   └── search.py      # mistralai.search.toolkit.retrieval.QueryEngine
 └── search_app/
