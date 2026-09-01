@@ -53,7 +53,7 @@ HEADERS_TO_SPLIT_ON: list[tuple[str, str]] = [
 # Match starter-app ingest defaults;
 DEFAULT_CHUNK_SIZE = 1000
 DEFAULT_CHUNK_MAX_SIZE = 4096
-DEFAULT_CHUNK_OVERLAP = 200
+DEFAULT_CHUNK_OVERLAP = 100  # about 10% of chunk size
 
 
 def markdown_splitter_config(
