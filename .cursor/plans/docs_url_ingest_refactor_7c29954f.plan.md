@@ -19,7 +19,7 @@ todos:
     status: pending
   - id: tests-docs
     content: Add host-validation test; update README with URL ingest examples
-    status: pending
+    status: completed
 isProject: false
 ---
 
