@@ -142,7 +142,7 @@ async def _run_cleaned(args: argparse.Namespace) -> None:
         return
 
     html = await fetch_html(args.url)
-    title, breadcrumb, article_html = isolate_article(html, args.url)
+    title, breadcrumb, article_html, _ = isolate_article(html, args.url)
     document = await HTMLExtractor().extract(
         File(path=args.url, name="page.html", raw=article_html.encode("utf-8"), source_id=args.url)
     )

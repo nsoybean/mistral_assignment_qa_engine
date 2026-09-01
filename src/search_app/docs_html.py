@@ -81,11 +81,37 @@ def slugify(text: str) -> str:
     return _SLUG_HYPHEN_RE.sub("-", slug).strip("-")
 
 
-def citation_url(page_url: str, heading: str | None, *, is_page_title: bool) -> str:
+def citation_url(
+    page_url: str,
+    heading: str | None,
+    *,
+    is_page_title: bool,
+    heading_anchors: dict[str, str] | None = None,
+    parent_citation_url: str | None = None,
+) -> str:
     canonical, _ = urldefrag(page_url)
     if not heading or is_page_title:
         return canonical
+    if heading_anchors:
+        anchor_id = heading_anchors.get(heading.casefold())
+        if anchor_id:
+            return f"{canonical}#{anchor_id}"
+    if parent_citation_url and parent_citation_url != canonical:
+        return parent_citation_url
     return f"{canonical}#{slugify(heading)}"
+
+
+def _heading_anchors(root: Tag) -> dict[str, str]:
+    """Map heading text (casefold) to Studio ``sectionId`` / ``id`` from isolated HTML."""
+    anchors: dict[str, str] = {}
+    for tag in root.find_all(["h1", "h2", "h3", "h4", "h5", "h6"]):
+        anchor_id = tag.get("id")
+        if not anchor_id:
+            continue
+        text = tag.get_text(" ", strip=True)
+        if text:
+            anchors[text.casefold()] = anchor_id
+    return anchors
 
 
 async def fetch_html(url: str, *, timeout: float = 30.0) -> str:
@@ -118,8 +144,8 @@ def _lift_section_headings(root: Tag) -> None:
         tab.decompose()
 
 
-def isolate_article(html: str, page_url: str) -> tuple[str, tuple[str, ...], str]:
-    """Return ``(title, breadcrumb, article HTML)`` ready for ``HTMLExtractor``.
+def isolate_article(html: str, page_url: str) -> tuple[str, tuple[str, ...], str, dict[str, str]]:
+    """Return ``(title, breadcrumb, article HTML, heading_anchors)`` for ``HTMLExtractor``.
 
     Steps:
     1. Scope to ``<main>`` — drops outer page chrome (header, sidebar shell).
@@ -146,7 +172,8 @@ def isolate_article(html: str, page_url: str) -> tuple[str, tuple[str, ...], str
         if isinstance(h1, Tag)
         else _title_from_url(page_url)
     )
-    return title, breadcrumb, str(root)
+    anchors = _heading_anchors(root)
+    return title, breadcrumb, str(root), anchors
 
 
 def _breadcrumb(soup: BeautifulSoup) -> tuple[str, ...]:
@@ -195,11 +222,14 @@ def _enrich_chunks(
     *,
     page_url: str,
     title: str,
+    heading_anchors: dict[str, str],
 ) -> tuple[DocumentChunk, ...]:
     """Stamp citation metadata and inherit the last section for heading-less chunks."""
     canonical_url = urljoin(page_url, urlparse(page_url).path)
     last_heading: str | None = title
-    last_citation_url = citation_url(page_url, title, is_page_title=True)
+    last_citation_url = citation_url(
+        page_url, title, is_page_title=True, heading_anchors=heading_anchors
+    )
 
     enriched: list[DocumentChunk] = []
     for chunk in chunks:
@@ -208,7 +238,11 @@ def _enrich_chunks(
             is_page_title = section_heading.casefold() == title.casefold()
             last_heading = section_heading
             last_citation_url = citation_url(
-                page_url, section_heading, is_page_title=is_page_title
+                page_url,
+                section_heading,
+                is_page_title=is_page_title,
+                heading_anchors=heading_anchors,
+                parent_citation_url=last_citation_url,
             )
             chunk_heading = section_heading
             chunk_citation_url = last_citation_url
@@ -238,7 +272,7 @@ async def parse_docs_page(
 ) -> DocsPage:
     """Fetch (unless ``html`` is given), extract, split, and stamp citation metadata."""
     raw_html = html if html is not None else await fetch_html(url)
-    title, breadcrumb, article_html = isolate_article(raw_html, url)
+    title, breadcrumb, article_html, heading_anchors = isolate_article(raw_html, url)
 
     extractor = HTMLExtractor()
     file = File(
@@ -259,6 +293,7 @@ async def parse_docs_page(
         list(document.chunks),
         page_url=url,
         title=title,
+        heading_anchors=heading_anchors,
     )
     document = document.model_copy(update={"chunks": list(chunks)})
     return DocsPage(

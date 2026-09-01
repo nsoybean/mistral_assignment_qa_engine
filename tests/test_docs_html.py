@@ -8,6 +8,7 @@ from mistralai.search.toolkit.document import DocumentChunk
 from search_app.docs_html import (
     _enrich_chunks,
     _leading_section_heading,
+    citation_url,
     isolate_article,
     parse_docs_page,
     slugify,
@@ -15,6 +16,31 @@ from search_app.docs_html import (
 
 _FIXTURE = Path(__file__).parent / "fixtures" / "chat_completion_snippet.html"
 _PAGE_URL = "https://docs.mistral.ai/studio/conversations/chat-completion"
+
+
+def test_citation_url_uses_html_anchor_id_not_slugify() -> None:
+    url = "https://docs.mistral.ai/studio/conversations/chat-completion/prompting"
+    anchors = {"what to avoid": "avoid", "avoid subjective and blurry words": "subjective-and-blurry"}
+    assert citation_url(
+        url,
+        "What to Avoid",
+        is_page_title=False,
+        heading_anchors=anchors,
+    ) == f"{url}#avoid"
+    assert citation_url(
+        url,
+        "Avoid Subjective and Blurry Words",
+        is_page_title=False,
+        heading_anchors=anchors,
+    ) == f"{url}#subjective-and-blurry"
+    # h3 without id inherits parent section link
+    assert citation_url(
+        url,
+        "What you should Avoid",
+        is_page_title=False,
+        heading_anchors=anchors,
+        parent_citation_url=f"{url}#avoid",
+    ) == f"{url}#avoid"
 
 
 def test_slugify_matches_studio_anchors() -> None:
@@ -25,7 +51,7 @@ def test_slugify_matches_studio_anchors() -> None:
 
 def test_isolate_article_strips_section_tabs_and_keeps_headings() -> None:
     html = _FIXTURE.read_text()
-    title, breadcrumb, article = isolate_article(html, _PAGE_URL)
+    title, breadcrumb, article, anchors = isolate_article(html, _PAGE_URL)
     assert title == "Chat completions"
     assert breadcrumb == ("Studio", "Conversations", "Chat Completions")
     assert "<main>" in article
@@ -34,6 +60,7 @@ def test_isolate_article_strips_section_tabs_and_keeps_headings() -> None:
     assert "Copy section link" not in article
     assert "<h2" in article and "Multi-turn" in article
     assert 'id="multi-turn"' in article
+    assert anchors["multi-turn"] == "multi-turn"
 
 
 def test_parse_docs_page_splits_on_headings_and_stamps_citation_urls() -> None:
@@ -98,6 +125,7 @@ def test_enrich_chunks_inherits_last_section_for_code_blocks() -> None:
         chunks,
         page_url=_PAGE_URL,
         title="Chat completions",
+        heading_anchors={"chat completion": "chat-completion", "multi-turn": "multi-turn"},
     )
     assert enriched[1].metadata.get("heading") == "Chat completion"
     assert enriched[1].metadata.get("citation_url") == f"{_PAGE_URL}#chat-completion"
