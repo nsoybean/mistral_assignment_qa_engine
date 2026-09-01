@@ -54,6 +54,13 @@ make preprocess-docs
 make preprocess-docs url="https://docs.mistral.ai/studio/conversations/reasoning"
 ```
 
+Inspect markdown and chunks before indexing (no Vespa, no API key):
+
+```bash
+make inspect-docs content=1
+make inspect-docs path=sample_data/mistral_docs chunk_size=1000
+```
+
 ### Search the collection
 
 Uses `QueryEngine` with `VectorRetriever` (hybrid BM25 + vector via Vespa):
@@ -129,6 +136,7 @@ src/
 ├── entrypoints/
 │   ├── ingest.py      # mistralai.search.toolkit.ingestion.pipelines.Pipeline
 │   ├── preprocess_docs.py  # fetch docs.mistral.ai → sample_data/mistral_docs/
+│   ├── inspect_docs.py     # preview markdown/chunks before ingest (no Vespa)
 │   ├── mcp_server.py  # MCP server (search + navigation + ingest tools)
 │   └── search.py      # mistralai.search.toolkit.retrieval.QueryEngine
 └── search_app/

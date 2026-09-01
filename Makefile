@@ -1,4 +1,4 @@
-.PHONY: installdeps install-workflows ingest search mcp preprocess-docs test start-examples execute-ingestion
+.PHONY: installdeps install-workflows ingest search mcp preprocess-docs inspect-docs test start-examples execute-ingestion
 .PHONY: setup-vespa start-vespa verify-vespa stop-vespa reset-vespa migrate-vespa bruno generate-vespa-lock
 
 ifneq (,$(wildcard .env))
@@ -59,6 +59,19 @@ preprocess-docs:
 	uv run python -m entrypoints.preprocess_docs \
 		$(if $(url),--url $(url),--urls-file sample_data/urls.txt) \
 		$(if $(output),--output $(output),)
+
+## Inspect markdown/chunks for preprocessed HTML (no Vespa, no API key)
+## Usage: make inspect-docs
+##        make inspect-docs path=sample_data/mistral_docs/studio/conversations/reasoning.html
+##        make inspect-docs content=1
+##        make inspect-docs chunk_size=1000
+inspect-docs:
+	uv run python -m entrypoints.inspect_docs \
+		$(or $(path),sample_data/mistral_docs/studio/conversations/chat-completion.html) \
+		$(if $(content),--content,) \
+		$(if $(chunk_size),--chunk-size $(chunk_size),) \
+		$(if $(chunk_overlap),--chunk-overlap $(chunk_overlap),) \
+		$(if $(max_chunks),--max-chunks $(max_chunks),)
 
 ## Search the indexed collection (Search Toolkit QueryEngine)
 ## Usage: make search query="hello world" [top_k=5] [query_profile=hybrid-search]
