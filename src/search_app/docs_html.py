@@ -37,7 +37,7 @@ HEADERS_TO_SPLIT_ON: list[tuple[str, str]] = [
     ("###", "h3"),
 ]
 
-# Match starter-app ingest defaults; preview CLI can pass chunk_size=1 to inspect sections.
+# Match starter-app ingest defaults;
 DEFAULT_CHUNK_SIZE = 1000
 DEFAULT_CHUNK_MAX_SIZE = 4096
 DEFAULT_CHUNK_OVERLAP = 200
