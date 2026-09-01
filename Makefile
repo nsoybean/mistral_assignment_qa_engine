@@ -1,4 +1,4 @@
-.PHONY: installdeps install-workflows ingest search mcp test start-examples execute-ingestion
+.PHONY: installdeps install-workflows ingest search mcp preview-docs test start-examples execute-ingestion
 .PHONY: setup-vespa start-vespa verify-vespa stop-vespa reset-vespa migrate-vespa bruno generate-vespa-lock
 
 ifneq (,$(wildcard .env))
@@ -55,6 +55,17 @@ ingest:
 ## Usage: make search query="hello world" [top_k=5] [query_profile=hybrid-search]
 search:
 	uv run python -m entrypoints.search "$(query)" $(if $(top_k),--top-k $(top_k),) $(if $(query_profile),--query-profile $(query_profile),)
+
+## Preview HTML extraction for a URL (no Vespa)
+## Usage: make preview-docs
+##        make preview-docs content=1
+##        make preview-docs raw=1 chunk_size=4096
+preview-docs:
+	uv run python -m entrypoints.preview_docs $(or $(url),https://docs.mistral.ai/studio/conversations/chat-completion) \
+		$(if $(raw),--raw,) \
+		$(if $(content),--content,) \
+		$(if $(no_split),--no-split,) \
+		$(if $(chunk_size),--chunk-size $(chunk_size),)
 
 ## Start the MCP server in HTTP mode
 ## Usage: make mcp [host=0.0.0.0] [port=8000]
