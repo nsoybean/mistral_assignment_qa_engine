@@ -38,7 +38,7 @@ def test_isolate_article_strips_section_tabs_and_keeps_headings() -> None:
 
 def test_parse_docs_page_splits_on_headings_and_stamps_citation_urls() -> None:
     html = _FIXTURE.read_text()
-    page = asyncio.run(parse_docs_page(_PAGE_URL, html=html))
+    page = asyncio.run(parse_docs_page(_PAGE_URL, html=html, chunk_size=1))
     headings = [chunk.metadata.get("heading") for chunk in page.chunks]
     citations = [chunk.metadata.get("citation_url") for chunk in page.chunks]
 
@@ -50,6 +50,12 @@ def test_parse_docs_page_splits_on_headings_and_stamps_citation_urls() -> None:
     # Page title chunk cites the canonical URL, not a hash of the h1.
     title_chunk = next(c for c in page.chunks if c.metadata.get("heading") == "Chat completions")
     assert title_chunk.metadata.get("citation_url") == _PAGE_URL
+
+
+def test_parse_docs_page_default_config_merges_small_pages() -> None:
+    html = _FIXTURE.read_text()
+    page = asyncio.run(parse_docs_page(_PAGE_URL, html=html))
+    assert len(page.chunks) == 1
 
 
 def test_leading_section_heading_ignores_hash_comments_in_code() -> None:

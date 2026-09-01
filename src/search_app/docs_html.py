@@ -30,10 +30,34 @@ _HEADING_LINE_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
 _SLUG_STRIP_RE = re.compile(r"[^\w\s-]", re.UNICODE)
 _SLUG_HYPHEN_RE = re.compile(r"[-\s]+")
 
-# One chunk per heading section. The starter-app default (4096) merges several
-# short sections into a single chunk; pass a larger value to compare.
-DEFAULT_CHUNK_SIZE = 1
+# Split at h1–h3 boundaries; keep header lines in chunk text for retrieval context.
+HEADERS_TO_SPLIT_ON: list[tuple[str, str]] = [
+    ("#", "h1"),
+    ("##", "h2"),
+    ("###", "h3"),
+]
+
+# Match starter-app ingest defaults; preview CLI can pass chunk_size=1 to inspect sections.
+DEFAULT_CHUNK_SIZE = 1000
 DEFAULT_CHUNK_MAX_SIZE = 4096
+DEFAULT_CHUNK_OVERLAP = 200
+
+
+def markdown_splitter_config(
+    *,
+    chunk_size: int = DEFAULT_CHUNK_SIZE,
+    chunk_max_size: int | None = DEFAULT_CHUNK_MAX_SIZE,
+    chunk_overlap: int = DEFAULT_CHUNK_OVERLAP,
+) -> MarkdownTextSplitterConfig:
+    """Build a header-aware splitter config per Search Toolkit docs."""
+    overlap = min(chunk_overlap, chunk_size - 1) if chunk_size > 1 else 0
+    return MarkdownTextSplitterConfig(
+        headers_to_split_on=HEADERS_TO_SPLIT_ON,
+        strip_headers=False,
+        chunk_size=chunk_size,
+        chunk_max_size=chunk_max_size,
+        chunk_overlap=overlap,
+    )
 
 
 @dataclass(frozen=True)
@@ -66,7 +90,9 @@ def citation_url(page_url: str, heading: str | None, *, is_page_title: bool) -> 
 
 async def fetch_html(url: str, *, timeout: float = 30.0) -> str:
     async with httpx.AsyncClient(follow_redirects=True, timeout=timeout) as client:
-        response = await client.get(url, headers={"User-Agent": "mistral-docs-preview/0.1"})
+        response = await client.get(
+            url, headers={"User-Agent": "mistral-docs-preview/0.1"}
+        )
         response.raise_for_status()
         return response.text
 
@@ -115,7 +141,11 @@ def isolate_article(html: str, page_url: str) -> tuple[str, tuple[str, ...], str
     _lift_section_headings(root)
 
     h1 = root.find("h1")
-    title = h1.get_text(" ", strip=True) if isinstance(h1, Tag) else _title_from_url(page_url)
+    title = (
+        h1.get_text(" ", strip=True)
+        if isinstance(h1, Tag)
+        else _title_from_url(page_url)
+    )
     return title, breadcrumb, str(root)
 
 
@@ -203,18 +233,25 @@ async def parse_docs_page(
     html: str | None = None,
     *,
     chunk_size: int = DEFAULT_CHUNK_SIZE,
-    chunk_max_size: int = DEFAULT_CHUNK_MAX_SIZE,
+    chunk_max_size: int | None = DEFAULT_CHUNK_MAX_SIZE,
+    chunk_overlap: int = DEFAULT_CHUNK_OVERLAP,
 ) -> DocsPage:
     """Fetch (unless ``html`` is given), extract, split, and stamp citation metadata."""
     raw_html = html if html is not None else await fetch_html(url)
     title, breadcrumb, article_html = isolate_article(raw_html, url)
 
     extractor = HTMLExtractor()
-    file = File(path=url, name="page.html", raw=article_html.encode("utf-8"), source_id=url)
+    file = File(
+        path=url, name="page.html", raw=article_html.encode("utf-8"), source_id=url
+    )
     document = await extractor.extract(file)
 
     splitter = MarkdownTextSplitter(
-        MarkdownTextSplitterConfig(chunk_size=chunk_size, chunk_max_size=chunk_max_size)
+        markdown_splitter_config(
+            chunk_size=chunk_size,
+            chunk_max_size=chunk_max_size,
+            chunk_overlap=chunk_overlap,
+        )
     )
     document = await splitter.process(document)
 

@@ -21,23 +21,21 @@ import sys
 
 from mistralai.search.toolkit.ingestion import File
 from mistralai.search.toolkit.ingestion.extractors import HTMLExtractor
-from mistralai.search.toolkit.ingestion.text_splitters import (
-    MarkdownTextSplitter,
-    MarkdownTextSplitterConfig,
-)
+from mistralai.search.toolkit.ingestion.text_splitters import MarkdownTextSplitter
 from search_app.docs_html import (
     DEFAULT_CHUNK_MAX_SIZE,
+    DEFAULT_CHUNK_OVERLAP,
     DEFAULT_CHUNK_SIZE,
     citation_url,
     fetch_html,
     isolate_article,
+    markdown_splitter_config,
     parse_docs_page,
     slugify,
 )
 
 _DEFAULT_URL = "https://docs.mistral.ai/studio/conversations/chat-completion"
-_STARTER_CHUNK_SIZE = 4096
-_STARTER_CHUNK_OVERLAP = 50
+_PREVIEW_CHUNK_SIZE = 1
 _HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$", re.MULTILINE)
 
 
@@ -81,6 +79,7 @@ async def _run_raw(
     *,
     chunk_size: int,
     chunk_max_size: int,
+    chunk_overlap: int,
     no_split: bool,
     show_content: bool,
     preview_chars: int,
@@ -109,10 +108,10 @@ async def _run_raw(
         return
 
     split_doc = await MarkdownTextSplitter(
-        MarkdownTextSplitterConfig(
+        markdown_splitter_config(
             chunk_size=chunk_size,
             chunk_max_size=chunk_max_size,
-            chunk_overlap=_STARTER_CHUNK_OVERLAP,
+            chunk_overlap=chunk_overlap,
         )
     ).process(document)
     _print_meta("after split:", len(split_doc.chunks))
@@ -126,6 +125,7 @@ async def _run_cleaned(args: argparse.Namespace) -> None:
             args.url,
             chunk_size=args.chunk_size,
             chunk_max_size=args.chunk_max_size,
+            chunk_overlap=args.chunk_overlap,
         )
         print("Mode:              HTMLExtractor + isolate_article + heading split")
         _print_meta("URL:", page.url)
@@ -165,6 +165,7 @@ async def _run(args: argparse.Namespace) -> None:
             args.url,
             chunk_size=args.chunk_size,
             chunk_max_size=args.chunk_max_size,
+            chunk_overlap=args.chunk_overlap,
             no_split=args.no_split,
             show_content=args.content,
             preview_chars=args.preview_chars,
@@ -202,10 +203,19 @@ def main() -> None:
     parser.add_argument(
         "--chunk-size",
         type=int,
-        default=DEFAULT_CHUNK_SIZE,
+        default=_PREVIEW_CHUNK_SIZE,
         help=(
-            f"MarkdownTextSplitter merge size (default {DEFAULT_CHUNK_SIZE} = one section per "
-            f"heading; starter ingest uses {_STARTER_CHUNK_SIZE})."
+            f"Max merged chars per header group (default {_PREVIEW_CHUNK_SIZE} for section "
+            f"inspection; ingest uses {DEFAULT_CHUNK_SIZE})."
+        ),
+    )
+    parser.add_argument(
+        "--chunk-overlap",
+        type=int,
+        default=0,
+        help=(
+            f"Overlap between separator sub-chunks (default 0 for preview; "
+            f"ingest uses {DEFAULT_CHUNK_OVERLAP})."
         ),
     )
     parser.add_argument(
