@@ -26,7 +26,7 @@ from mistralai.search.toolkit.ingestion.text_splitters import (
     MarkdownTextSplitterConfig,
 )
 
-_HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$", re.MULTILINE)
+_HEADING_LINE_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
 _SLUG_STRIP_RE = re.compile(r"[^\w\s-]", re.UNICODE)
 _SLUG_HYPHEN_RE = re.compile(r"[-\s]+")
 
@@ -136,26 +136,66 @@ def _title_from_url(page_url: str) -> str:
     return path.rsplit("/", 1)[-1] if path else page_url
 
 
-def _enrich_chunk(
-    chunk: DocumentChunk,
+def _leading_section_heading(content: str, page_title: str) -> str | None:
+    """Return a section heading only when it leads the chunk.
+
+    Uses the first non-empty line so ``#`` comments inside code blocks do not
+    advance the carry-forward state. Single-``#`` lines count only when they
+    match the page ``h1`` title; section tabs use ``##`` / ``###``.
+    """
+    for line in content.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        match = _HEADING_LINE_RE.match(stripped)
+        if not match:
+            return None
+        level = len(match.group(1))
+        heading = match.group(2).strip()
+        if level >= 2:
+            return heading
+        if heading.casefold() == page_title.casefold():
+            return heading
+        return None
+    return None
+
+
+def _enrich_chunks(
+    chunks: list[DocumentChunk],
     *,
     page_url: str,
     title: str,
-    breadcrumb: tuple[str, ...],
-) -> DocumentChunk:
-    match = _HEADING_RE.search(chunk.content)
-    heading = match.group(2).strip() if match else None
-    is_page_title = heading is not None and heading.casefold() == title.casefold()
-    meta = chunk.metadata.model_copy(
-        update={
-            "url": urljoin(page_url, urlparse(page_url).path),
-            "title": title,
-            "breadcrumb": " > ".join(breadcrumb),
-            "heading": heading,
-            "citation_url": citation_url(page_url, heading, is_page_title=bool(is_page_title)),
-        }
-    )
-    return chunk.model_copy(update={"metadata": meta})
+) -> tuple[DocumentChunk, ...]:
+    """Stamp citation metadata and inherit the last section for heading-less chunks."""
+    canonical_url = urljoin(page_url, urlparse(page_url).path)
+    last_heading: str | None = title
+    last_citation_url = citation_url(page_url, title, is_page_title=True)
+
+    enriched: list[DocumentChunk] = []
+    for chunk in chunks:
+        section_heading = _leading_section_heading(chunk.content, title)
+        if section_heading is not None:
+            is_page_title = section_heading.casefold() == title.casefold()
+            last_heading = section_heading
+            last_citation_url = citation_url(
+                page_url, section_heading, is_page_title=is_page_title
+            )
+            chunk_heading = section_heading
+            chunk_citation_url = last_citation_url
+        else:
+            chunk_heading = last_heading
+            chunk_citation_url = last_citation_url
+
+        meta = chunk.metadata.model_copy(
+            update={
+                "url": canonical_url,
+                "title": title,
+                "heading": chunk_heading,
+                "citation_url": chunk_citation_url,
+            }
+        )
+        enriched.append(chunk.model_copy(update={"metadata": meta}))
+    return tuple(enriched)
 
 
 async def parse_docs_page(
@@ -178,9 +218,10 @@ async def parse_docs_page(
     )
     document = await splitter.process(document)
 
-    chunks = tuple(
-        _enrich_chunk(chunk, page_url=url, title=title, breadcrumb=breadcrumb)
-        for chunk in document.chunks
+    chunks = _enrich_chunks(
+        list(document.chunks),
+        page_url=url,
+        title=title,
     )
     document = document.model_copy(update={"chunks": list(chunks)})
     return DocsPage(
