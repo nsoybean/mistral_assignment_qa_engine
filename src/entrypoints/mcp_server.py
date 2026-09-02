@@ -89,10 +89,11 @@ MCP_SERVER_NAME = "Mistral Documentation"
 mcp = FastMCP(
     MCP_SERVER_NAME,
     instructions="""\
-Search a local index of preprocessed docs.mistral.ai pages. 
-Each chunk carries citation metadata — cite answers using
-metadata.citation_url; metadata.heading is the section title; source_id
-is the canonical page URL.
+Search a local index of preprocessed docs.mistral.ai pages.
+Each chunk carries citation metadata — when citing, prefer
+metadata.citation_url (section anchor deep-link when available); if absent
+or only the bare page URL, fall back to source_id (canonical page URL).
+metadata.heading is the section title.
 
 Retrieval loop:
 1. `search` — find relevant sections across the indexed docs
