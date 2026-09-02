@@ -1,33 +1,18 @@
 """MCP server for searching preprocessed docs.mistral.ai pages."""
 
 import os
-from pathlib import Path
-from urllib.parse import urlparse
-from urllib.request import url2pathname
 
-import httpx
 from dotenv import load_dotenv
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
-from mistralai.search.toolkit.embedders import MistralEmbedder
 from mistralai.search.toolkit.document import compute_id
-from mistralai.search.toolkit.ingestion import File
-from mistralai.search.toolkit.ingestion.extractors import (
-    MistralOCRExtractor,
-    PlainTextExtractor,
-)
-from mistralai.search.toolkit.ingestion.loaders import FilesystemFileLoader
-from mistralai.search.toolkit.ingestion.pipelines import Pipeline
-from mistralai.search.toolkit.ingestion.text_splitters import (
-    MarkdownTextSplitter,
-    MarkdownTextSplitterConfig,
-)
 from mistralai.search.toolkit.search import (
     GrepMode,
     NavigableIndex,
     NavigationDirection,
 )
 from mistralai.search.toolkit.search.errors import DocumentNotFoundError
+
 from search_app.query import (
     create_query_engine,
     get_collection_name,
@@ -36,8 +21,6 @@ from search_app.query import (
 )
 
 load_dotenv(override=True)
-
-_TEXT_SUFFIXES = {".txt", ".md", ".markdown", ".csv", ".json"}
 
 # ---------------------------------------------------------------------------
 # Startup — fail fast if the environment is misconfigured
@@ -49,7 +32,6 @@ if not _api_key:
 
 _collection_name = get_collection_name()
 _mistral_client = get_mistral_client()
-_embedder = MistralEmbedder(client=_mistral_client)
 _query_engine, _vector_store = create_query_engine(
     collection=_collection_name,
     client=_mistral_client,
@@ -60,25 +42,6 @@ if not isinstance(_vector_store, NavigableIndex):
         "Ensure IndexingMode.DOCUMENT_PER_CHUNK is used in the schema migration."
     )
 _navigable_store: NavigableIndex = _vector_store
-
-_loader = FilesystemFileLoader()
-_text_splitter = MarkdownTextSplitter(
-    MarkdownTextSplitterConfig(chunk_size=4096, chunk_overlap=50)
-)
-_plain_text_pipeline = Pipeline(
-    loader=_loader,
-    extractor=PlainTextExtractor(),
-    text_splitter=_text_splitter,
-    embedder=_embedder,
-    stores=_vector_store,
-)
-_ocr_pipeline = Pipeline(
-    loader=_loader,
-    extractor=MistralOCRExtractor(client=_mistral_client),
-    text_splitter=_text_splitter,
-    embedder=_embedder,
-    stores=_vector_store,
-)
 
 # ---------------------------------------------------------------------------
 # MCP server
@@ -104,9 +67,7 @@ Retrieval loop:
 
 Prefer retrieved chunks over general knowledge for API parameters, model
 names, and code examples. Known index gaps: collapsed FAQ answers and
-inactive code-tab languages (TypeScript, curl) may be missing.
-
-`ingest` adds files to the index; `delete` removes a document by source_id.""",
+inactive code-tab languages (TypeScript, curl) may be missing.""",
 )
 
 
@@ -150,90 +111,6 @@ async def search(query: str, top_k: int = 5) -> list[dict]:
         query_engine=_query_engine,
     )
     return _format_chunks(result.results)
-
-
-def _pipeline_for_name(name: str) -> Pipeline:
-    """Return the plain-text or OCR pipeline based on the file extension."""
-    return (
-        _plain_text_pipeline
-        if Path(name).suffix.lower() in _TEXT_SUFFIXES
-        else _ocr_pipeline
-    )
-
-
-def _filename_from_url(url: str, headers: httpx.Headers) -> str:
-    """Derive a filename from a Content-Disposition header or the URL path."""
-    cd = headers.get("content-disposition", "")
-    if cd:
-        for part in cd.split(";"):
-            part = part.strip()
-            if part.lower().startswith("filename="):
-                return part.split("=", 1)[1].strip().strip('"')
-    name = urlparse(url).path.rstrip("/").rsplit("/", 1)[-1]
-    return name or "download"
-
-
-async def _ingest_http(url: str) -> str:
-    async with httpx.AsyncClient(follow_redirects=True) as client:
-        r = await client.get(url)
-        r.raise_for_status()
-        name = _filename_from_url(url, r.headers)
-        content = r.content
-
-    file = File(path=url, name=name, raw=content, source_id=url)
-    doc = await _pipeline_for_name(name).run_file(file)
-    return f"Indexed {len(doc.chunks)} chunks from '{url}' into '{_collection_name}'."
-
-
-async def _ingest_local(root: Path) -> str:
-    if not root.exists():
-        return f"Error: path not found: {root}"
-
-    if root.is_file():
-        documents = [root]
-    elif root.is_dir():
-        documents = sorted(p for p in root.rglob("*") if p.is_file())
-        if not documents:
-            return f"Error: no files found under {root}"
-    else:
-        return f"Error: {root} is neither a file nor a directory"
-
-    total_chunks = 0
-    for doc_path in documents:
-        total_chunks += await _pipeline_for_name(doc_path.name).run(
-            documents=[doc_path], use_checkpoint=False
-        )
-    return (
-        f"Indexed {total_chunks} chunks from {len(documents)} file(s)"
-        f" into '{_collection_name}'."
-    )
-
-
-@mcp.tool()
-async def ingest(uri: str) -> str:
-    """Add a document to the Mistral docs search index.
-
-    For preprocessed docs HTML, prefer ingesting via the CLI
-    (`make ingest path=sample_data/mistral_docs`) — the MCP path does not yet
-    use the docs HTML pipeline. Accepts a local path, file:// URI, or http(s) URL.
-    Text files use plain-text extraction; other formats use Mistral OCR.
-
-    Args:
-        uri: Local file/directory path, file:// URI, or http(s):// URL.
-
-    Returns:
-        A summary of how many chunks were indexed, or an error message.
-    """
-    parsed = urlparse(uri)
-
-    if parsed.scheme in ("http", "https"):
-        return await _ingest_http(uri)
-
-    if parsed.scheme == "file":
-        return await _ingest_local(Path(url2pathname(parsed.path)))
-
-    # Bare local path (no scheme)
-    return await _ingest_local(Path(uri))
 
 
 @mcp.tool()
