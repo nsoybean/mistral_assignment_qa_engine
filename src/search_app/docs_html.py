@@ -47,7 +47,7 @@ _SLUG_HYPHEN_RE = re.compile(r"[-\s]+")
 HEADERS_TO_SPLIT_ON: list[tuple[str, str]] = [
     ("#", "h1"),
     ("##", "h2"),
-    ("###", "h3"),
+    # ("###", "h3"),
 ]
 
 # Match starter-app ingest defaults;
