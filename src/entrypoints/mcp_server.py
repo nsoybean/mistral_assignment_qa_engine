@@ -1,4 +1,4 @@
-"""MCP server exposing search and ingest tools for the local search index."""
+"""MCP server for searching preprocessed docs.mistral.ai pages."""
 
 import os
 from pathlib import Path
@@ -75,21 +75,26 @@ _ocr_pipeline = Pipeline(
 # MCP server
 # ---------------------------------------------------------------------------
 
+MCP_SERVER_NAME = "Mistral Documentation"
+
 mcp = FastMCP(
-    "Search Starter App Documents",
+    MCP_SERVER_NAME,
     instructions=(
-        "Search and navigate a local document index.\n\n"
-        "Retrieval loop: start with `search` to find relevant chunks across the "
-        "collection, then drill into a promising hit *within its document* without "
-        "re-running a global search:\n"
-        "- `open`     — expand context around a chunk by its `id` (`window` controls the radius)\n"
-        "- `grep`     — jump to an exact term or phrase in the same document\n"
-        "- `navigate` — step sequentially through adjacent chunks\n"
-        "- `read`     — fetch a known offset range directly (no context expansion)\n"
-        "Then call `search` again with a query informed by what you have read to "
-        "connect information across documents. To scope a search to one document, "
-        "include its title or source_id in the query.\n\n"
-        "`ingest` adds new documents to the index; `delete` removes them."
+        "Search a local index of preprocessed docs.mistral.ai pages (Studio "
+        "conversations, function calling, structured outputs, vision, reasoning, "
+        "etc.). Each chunk carries citation metadata — cite answers using "
+        "metadata.citation_url; metadata.heading is the section title; source_id "
+        "is the canonical page URL.\n\n"
+        "Retrieval loop:\n"
+        "1. `search` — find relevant sections across the indexed docs\n"
+        "2. `open` — expand context around a hit (pass chunk `id` from search)\n"
+        "3. `grep` — exact term or phrase within one page (pass source_id from search)\n"
+        "4. `navigate` / `read` — step through or fetch chunks within one page\n"
+        "5. Search again with refined queries to connect topics across pages\n\n"
+        "Prefer retrieved chunks over general knowledge for API parameters, model "
+        "names, and code examples. Known index gaps: collapsed FAQ answers and "
+        "inactive code-tab languages (TypeScript, curl) may be missing.\n\n"
+        "`ingest` adds files to the index; `delete` removes a document by source_id."
     ),
 )
 
@@ -118,10 +123,14 @@ def _format_chunks(results: list) -> list[dict]:
 
 @mcp.tool()
 async def search(query: str, top_k: int = 5) -> list[dict]:
-    """Search the document collection and return the most relevant chunks.
+    """Search indexed docs.mistral.ai pages by natural language.
+
+    Returns the most relevant chunks. Each result includes metadata.citation_url
+    (deep link to the section), metadata.heading, metadata.title, and source_id
+    (canonical page URL). Cite metadata.citation_url in answers.
 
     Args:
-        query: Natural-language search query.
+        query: Natural-language search query (e.g. "reasoning_effort parameter").
         top_k: Maximum number of results to return (default 5).
     """
     result = await run_search(
@@ -191,12 +200,12 @@ async def _ingest_local(root: Path) -> str:
 
 @mcp.tool()
 async def ingest(uri: str) -> str:
-    """Ingest a document into the search index.
+    """Add a document to the Mistral docs search index.
 
-    Accepts a local path, a file:// URI, or an http/https URL. Directories are
-    walked recursively when given a local path. Text files (.txt, .md, .csv,
-    .json) use plain-text extraction; all other formats (PDF, DOCX, …) are
-    processed with Mistral OCR.
+    For preprocessed docs HTML, prefer ingesting via the CLI
+    (`make ingest path=sample_data/mistral_docs`) — the MCP path does not yet
+    use the docs HTML pipeline. Accepts a local path, file:// URI, or http(s) URL.
+    Text files use plain-text extraction; other formats use Mistral OCR.
 
     Args:
         uri: Local file/directory path, file:// URI, or http(s):// URL.
@@ -218,13 +227,13 @@ async def ingest(uri: str) -> str:
 
 @mcp.tool()
 async def delete(source_id: str) -> str:
-    """Delete a document and all its chunks from the search index.
+    """Remove a docs.mistral.ai page and all its chunks from the index.
 
-    Use the source_id returned by search() or ingest() to identify the
-    document to remove. All chunks belonging to that document are deleted.
+    Use source_id from search() — for indexed docs this is the page URL
+    (e.g. https://docs.mistral.ai/studio/conversations/reasoning).
 
     Args:
-        source_id: Source identifier of the document to delete.
+        source_id: Page URL or other source identifier of the document to delete.
 
     Returns:
         A confirmation message, or an error message if the document was not found.
@@ -242,16 +251,15 @@ async def delete(source_id: str) -> str:
 
 @mcp.tool()
 async def open(chunk_id: str, window: int = 2) -> list[dict]:
-    """Expand context around a chunk from search: return it plus adjacent chunks in reading order.
+    """Expand context around a docs.mistral.ai search hit within the same page.
 
-    Pass the `id` of a chunk from a search() result; the server resolves its
-    position and pulls in `window` neighbouring chunks on each side. When you
-    already know the exact offset range and want those chunks verbatim, use
-    read() instead.
+    Pass chunk `id` from search(); returns neighbouring chunks in reading order
+    on the same page. Use when a search snippet is truncated or missing context.
+    For a known offset range without expansion, use read() instead.
 
     Args:
-        chunk_id: `id` of a chunk from a search() result.
-        window:   Number of adjacent chunks to fetch in each direction (default 2).
+        chunk_id: `id` from a search() result.
+        window:   Adjacent chunks to include on each side (default 2).
     """
     anchor = await _navigable_store.get_chunk(chunk_id)
     if anchor is None:
@@ -323,14 +331,16 @@ async def grep(
     mode: str = "phrase",
     top_k: int = 5,
 ) -> list[dict]:
-    """Lexical search for an exact term or phrase within a single document.
+    """Find exact terms or phrases within one indexed docs page.
+
+    Use source_id from search() (the docs.mistral.ai page URL). Helpful for model
+    names, parameter names, or error strings that hybrid search may rank poorly.
 
     Args:
-        source_id: Source identifier from a search() result.
-        pattern:   Text to search for.
-        mode:      "phrase" (default) — terms must appear in exact order;
-                   "term" — all terms must appear but in any order.
-        top_k:     Maximum number of matching chunks to return (default 5).
+        source_id: Page URL from a search() result.
+        pattern:   Text to search for (e.g. "reasoning_effort", "ThinkChunk").
+        mode:      "phrase" (default) — exact order; "term" — all terms, any order.
+        top_k:     Maximum matches to return (default 5).
     """
     grep_mode = GrepMode(mode)
     results = await _navigable_store.grep(source_id, pattern, mode=grep_mode, top_k=top_k)

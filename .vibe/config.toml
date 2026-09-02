@@ -1,5 +1,21 @@
+# Vibe alias for tool names (e.g. mistral-documentation_search).
+# Display name shown to the model is set in entrypoints/mcp_server.py.
 [[mcp_servers]]
-name = "my-search-project"
+name = "mistral-documentation"
 transport = "stdio"
 command = "uv"
-args = ["run", "python", "-m", "entrypoints.mcp_server"]
+args = [
+    "run",
+    "python",
+    "-m",
+    "entrypoints.mcp_server",
+]
+
+[tools.mistral-documentation_search]
+permission = "always"
+
+[tools.mistral-documentation_open]
+permission = "always"
+
+[tools.mistral-documentation_grep]
+permission = "always"
