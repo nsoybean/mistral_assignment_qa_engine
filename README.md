@@ -45,8 +45,9 @@ vibe               # agent Q&A via MCP (reads .vibe/config.toml), agent should p
 Example queries:
 
 ```
-does mistral 3 14B support tool calling? 
-how do i handle thinking chunk
+"does mistral 3 14B support tool calling?"
+"how do i use prompt registry (fixed version) and set reasoning to high?"
+"how do i handle thinking chunk"
 ```
 
 
