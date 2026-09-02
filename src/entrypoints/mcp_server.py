@@ -22,9 +22,18 @@ from mistralai.search.toolkit.ingestion.text_splitters import (
     MarkdownTextSplitter,
     MarkdownTextSplitterConfig,
 )
-from mistralai.search.toolkit.search import GrepMode, NavigableIndex, NavigationDirection
+from mistralai.search.toolkit.search import (
+    GrepMode,
+    NavigableIndex,
+    NavigationDirection,
+)
 from mistralai.search.toolkit.search.errors import DocumentNotFoundError
-from search_app.query import create_query_engine, get_collection_name, get_mistral_client, search as run_search
+from search_app.query import (
+    create_query_engine,
+    get_collection_name,
+    get_mistral_client,
+    search as run_search,
+)
 
 load_dotenv(override=True)
 
@@ -79,23 +88,24 @@ MCP_SERVER_NAME = "Mistral Documentation"
 
 mcp = FastMCP(
     MCP_SERVER_NAME,
-    instructions=(
-        "Search a local index of preprocessed docs.mistral.ai pages (Studio "
-        "conversations, function calling, structured outputs, vision, reasoning, "
-        "etc.). Each chunk carries citation metadata — cite answers using "
-        "metadata.citation_url; metadata.heading is the section title; source_id "
-        "is the canonical page URL.\n\n"
-        "Retrieval loop:\n"
-        "1. `search` — find relevant sections across the indexed docs\n"
-        "2. `open` — expand context around a hit (pass chunk `id` from search)\n"
-        "3. `grep` — exact term or phrase within one page (pass source_id from search)\n"
-        "4. `navigate` / `read` — step through or fetch chunks within one page\n"
-        "5. Search again with refined queries to connect topics across pages\n\n"
-        "Prefer retrieved chunks over general knowledge for API parameters, model "
-        "names, and code examples. Known index gaps: collapsed FAQ answers and "
-        "inactive code-tab languages (TypeScript, curl) may be missing.\n\n"
-        "`ingest` adds files to the index; `delete` removes a document by source_id."
-    ),
+    instructions="""\
+Search a local index of preprocessed docs.mistral.ai pages. 
+Each chunk carries citation metadata — cite answers using
+metadata.citation_url; metadata.heading is the section title; source_id
+is the canonical page URL.
+
+Retrieval loop:
+1. `search` — find relevant sections across the indexed docs
+2. `open` — expand context around a hit (pass chunk `id` from search)
+3. `grep` — exact term or phrase within one page (pass source_id from search)
+4. `navigate` / `read` — step through or fetch chunks within one page
+5. Search again with refined queries to connect topics across pages
+
+Prefer retrieved chunks over general knowledge for API parameters, model
+names, and code examples. Known index gaps: collapsed FAQ answers and
+inactive code-tab languages (TypeScript, curl) may be missing.
+
+`ingest` adds files to the index; `delete` removes a document by source_id.""",
 )
 
 
@@ -249,6 +259,7 @@ async def delete(source_id: str) -> str:
 # Agentic navigation tools  (RFC: Agentic Search Loop)
 # ---------------------------------------------------------------------------
 
+
 @mcp.tool()
 async def open(chunk_id: str, window: int = 2) -> list[dict]:
     """Expand context around a docs.mistral.ai search hit within the same page.
@@ -320,7 +331,9 @@ async def read(
         end_offset:   Inclusive upper bound (None = end of document).
         top_k:        Maximum number of chunks to return (default 20).
     """
-    results = await _navigable_store.read(source_id, start_offset, end_offset, top_k=top_k)
+    results = await _navigable_store.read(
+        source_id, start_offset, end_offset, top_k=top_k
+    )
     return _format_chunks(results)
 
 
@@ -343,7 +356,9 @@ async def grep(
         top_k:     Maximum matches to return (default 5).
     """
     grep_mode = GrepMode(mode)
-    results = await _navigable_store.grep(source_id, pattern, mode=grep_mode, top_k=top_k)
+    results = await _navigable_store.grep(
+        source_id, pattern, mode=grep_mode, top_k=top_k
+    )
     return _format_chunks(results)
 
 
@@ -357,10 +372,15 @@ if __name__ == "__main__":
         help="Start in HTTP (streamable-HTTP) mode instead of the default stdio mode.",
     )
     parser.add_argument(
-        "--host", default="127.0.0.1", help="Bind host (HTTP mode only, default: 127.0.0.1)."
+        "--host",
+        default="127.0.0.1",
+        help="Bind host (HTTP mode only, default: 127.0.0.1).",
     )
     parser.add_argument(
-        "--port", type=int, default=8000, help="Bind port (HTTP mode only, default: 8000)."
+        "--port",
+        type=int,
+        default=8000,
+        help="Bind port (HTTP mode only, default: 8000).",
     )
     args = parser.parse_args()
 
