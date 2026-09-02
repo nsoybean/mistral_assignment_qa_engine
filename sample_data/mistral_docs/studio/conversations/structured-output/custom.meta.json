@@ -1,0 +1,14 @@
+{
+  "url": "https://docs.mistral.ai/studio/conversations/structured-output/custom",
+  "title": "Custom Structured Outputs",
+  "breadcrumb": [
+    "Studio",
+    "Structured Outputs"
+  ],
+  "heading_anchors": {
+    "usage": "usage",
+    "define the data model": "define-the-data-model",
+    "start the completion": "start-the-completion",
+    "faq": "faq"
+  }
+}

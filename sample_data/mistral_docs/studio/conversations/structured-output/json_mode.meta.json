@@ -1,0 +1,12 @@
+{
+  "url": "https://docs.mistral.ai/studio/conversations/structured-output/json_mode",
+  "title": "JSON Mode",
+  "breadcrumb": [
+    "Studio",
+    "Structured Outputs"
+  ],
+  "heading_anchors": {
+    "usage": "usage",
+    "faq": "faq"
+  }
+}

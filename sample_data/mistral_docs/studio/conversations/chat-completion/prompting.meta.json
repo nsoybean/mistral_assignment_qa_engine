@@ -1,0 +1,23 @@
+{
+  "url": "https://docs.mistral.ai/studio/conversations/chat-completion/prompting",
+  "title": "Prompting",
+  "breadcrumb": [
+    "Studio",
+    "Chat Completions"
+  ],
+  "heading_anchors": {
+    "main concepts": "main-concepts",
+    "system prompt": "classification-prompt",
+    "providing a purpose": "purpose",
+    "structure": "structure",
+    "formatting": "formatting",
+    "example prompting": "example-prompting",
+    "few-shot prompting": "few-shot",
+    "structured outputs": "structured-outputs",
+    "advice": "advice",
+    "what to avoid": "avoid",
+    "avoid subjective and blurry words": "subjective-and-blurry",
+    "avoid contradictions": "contradictions",
+    "prompting examples": "prompting-examples"
+  }
+}

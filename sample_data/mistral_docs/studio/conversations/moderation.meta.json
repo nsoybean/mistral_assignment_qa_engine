@@ -1,0 +1,18 @@
+{
+  "url": "https://docs.mistral.ai/studio/conversations/moderation",
+  "title": "Moderation & Guardrailing",
+  "breadcrumb": [
+    "Studio"
+  ],
+  "heading_anchors": {
+    "moderation": "moderation",
+    "endpoints": "endpoints",
+    "cookbooks": "cookbooks",
+    "faq": "faq",
+    "custom guardrails": "custom-guardrails",
+    "chat completions guardrails": "inline-guardrails",
+    "conversations guardrails": "conversations-guardrails",
+    "agent-level guardrails": "agent-guardrails",
+    "responses": "guardrail-responses"
+  }
+}

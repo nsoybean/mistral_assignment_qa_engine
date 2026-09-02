@@ -1,0 +1,16 @@
+{
+  "url": "https://docs.mistral.ai/studio/conversations/citations",
+  "title": "citations",
+  "breadcrumb": [
+    "Studio"
+  ],
+  "heading_anchors": {
+    "usage": "usage",
+    "setup tool": "setup",
+    "initialize client": "initialize-client",
+    "set up chat history": "set-up-chat-history",
+    "make initial chat request": "make-initial-chat-request",
+    "make final chat request": "make-final-chat-request",
+    "cookbooks": "cookbooks"
+  }
+}

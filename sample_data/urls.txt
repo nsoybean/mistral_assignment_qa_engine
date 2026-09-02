@@ -2,7 +2,16 @@
 # Run: make preprocess-docs
 
 https://docs.mistral.ai/studio/conversations/chat-completion
-https://docs.mistral.ai/studio/conversations/reasoning
+https://docs.mistral.ai/studio/conversations/chat-completion/prompting
+https://docs.mistral.ai/studio/conversations/chat-completion/prompt-registry
 https://docs.mistral.ai/studio/conversations/vision
+https://docs.mistral.ai/studio/conversations/reasoning
+https://docs.mistral.ai/studio/conversations/citations
+https://docs.mistral.ai/studio/conversations/advanced/predicted-outputs
+https://docs.mistral.ai/studio/conversations/advanced/prompt-caching
 https://docs.mistral.ai/studio/conversations/function-calling
-https://docs.mistral.ai/agents/agents
+https://docs.mistral.ai/studio/conversations/structured-output
+https://docs.mistral.ai/studio/conversations/structured-output/custom
+https://docs.mistral.ai/studio/conversations/structured-output/json_mode
+https://docs.mistral.ai/studio/conversations/moderation
+

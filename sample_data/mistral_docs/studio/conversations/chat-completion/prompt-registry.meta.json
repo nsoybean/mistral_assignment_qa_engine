@@ -1,0 +1,13 @@
+{
+  "url": "https://docs.mistral.ai/studio/conversations/chat-completion/prompt-registry",
+  "title": "Using prompts in chat completions",
+  "breadcrumb": [
+    "Studio",
+    "Chat Completions"
+  ],
+  "heading_anchors": {
+    "basic usage": "basic-usage",
+    "template variables": "template-variables",
+    "pinning a version": "pinning-a-version"
+  }
+}

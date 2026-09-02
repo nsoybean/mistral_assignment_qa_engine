@@ -1,0 +1,13 @@
+{
+  "url": "https://docs.mistral.ai/studio/conversations/advanced/prompt-caching",
+  "title": "Prompt caching",
+  "breadcrumb": [
+    "Studio"
+  ],
+  "heading_anchors": {
+    "when to use prompt caching": "when-to-use-prompt-caching",
+    "enable prompt caching in your requests": "use-prompt-cache-key",
+    "check cached tokens": "check-cached-tokens",
+    "track billing": "track-billing"
+  }
+}
