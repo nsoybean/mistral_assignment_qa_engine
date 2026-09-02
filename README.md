@@ -50,7 +50,7 @@ Simple query:
 
 ![Simple keyword query example](public/keyword_query.png)
 
-Complex query, where query spans across multiple docs. Note returned citations at the bottom returns links to granular sections whenever possible.
+Complex query, where query spans across multiple docs. Note returned citations at the bottom returned links to anchor link whenever possible.
 
 `how do i use prompt registry (fixed version) and set reasoning to 'high'`
 ![Complex query example](public/complex_query.png)
