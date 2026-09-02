@@ -19,7 +19,7 @@ Preprocessed HTML for 13 Studio conversation pages lives under `sample_data/mist
 
 💡For reviewers 👇:
 
-**Design decisions, trade-offs, and demo script:** [interview_notes.md](interview_notes.md)
+**Design decisions, trade-offs/ limitations, and demo script:** [interview_notes.md](interview_notes.md)
 
 ## Setup
 
