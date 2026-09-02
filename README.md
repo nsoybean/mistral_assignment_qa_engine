@@ -1,16 +1,47 @@
-# my-search-project
+# Mistral q&a assignment
 
-A [Mistral Search Toolkit](https://pypi.org/project/mistralai-search-toolkit/) project with a Vespa backend.
+Search over [docs.mistral.ai](https://docs.mistral.ai): ingest Studio documentation, retrieve relevant sections with hybrid search, and answer questions with grounded citations.
 
-SDK namespace: `mistralai.search.toolkit` — see the [toolkit docs](https://github.com/mistralai/mistral-pro/tree/main/dashboards/main/search/toolkit) for architecture and extension guides.
+Based on the [search-starter-app](https://github.com/mistralai/search-starter-app) Copier template, which scaffolds a project with ingestion pipelines, a Vespa search index, an MCP server exposing navigation tools, and sample data.
+
+The starter app is designed to be driven by an agent — scaffold the project, start Vespa, then launch an agent like Vibe that discovers the MCP server and calls the search and ingestion tools through natural language.
+
+## Overview
+
+Mistral docs are React/Next.js pages — raw HTML is noisy (sidebar, TOC) and incomplete (inactive code tabs and collapsed FAQ answers live in RSC payloads, not the static DOM).
+
+The Q&A engine is split into two phases:
+
+1. **Parsing and ingestion (script)** — fetch docs, run domain-specific HTML cleanup, convert to markdown, split on headings with section deep-link citations, embed and index into Vespa.
+2. **Retrieval and answer generation (script or agent)** — hybrid search via CLI (`make search`) or an agent over MCP (Vibe / Claude Code).
+
+Preprocessed HTML for 13 Studio conversation pages lives under `sample_data/mistral_docs/` (committed to the repo so review is offline and deterministic).
+
+For reviewers 👇:
+**Design decisions, trade-offs, and demo script:** [interview_notes.md](interview_notes.md)
 
 ## Setup
+Set key in `.env`
+```bash
+MISTRAL_API_KEY=****
+```
+
+## Quick start (reviewer)
 
 ```bash
 make installdeps
+make setup-vespa
+make ingest path=sample_data/mistral_docs
+make search query="how do i handle thinking chunk" 
+make test          # offline extraction/chunking tests
+vibe               # agent Q&A via MCP (reads .vibe/config.toml), agent should provide citation back to https://docs.mistral.ai/studio/conversations/reasoning#handling-thinking-chunks
 ```
 
-`MISTRAL_API_KEY` is set in `.env` from the value you entered during `copier copy` (or edit `.env` later). Project name matches the folder you passed to `copier copy` (this directory).
+Example queries: 
+`does mistral 3 14B support tool calling?` 
+`how do i handle thinking chunk`
+
+
 
 ## Commands
 
@@ -22,7 +53,7 @@ make setup-vespa
 
 Expected output (success): Vespa container `Healthy`, migration `"activated": true`, then `Application is up!` / `Application ready`. Warnings about `no_query_match` and `summary_fields` are normal. First startup may take up to a minute.
 
-You are not asked for ports during `copier copy`; defaults are set for you. If ports **18080** / **19072** are already in use, update `VESPA_QUERY_PORT` / `VESPA_CONFIG_PORT` in `.env` and rerun `make setup-vespa`.
+If ports **18080** / **19072** are already in use, update `VESPA_QUERY_PORT` / `VESPA_CONFIG_PORT` in `.env` and rerun `make setup-vespa`.
 
 To wipe local Vespa data and redeploy from scratch:
 
@@ -31,12 +62,20 @@ make reset-vespa
 make setup-vespa
 ```
 
-### Ingest documents
+### Preprocess docs (optional — corpus already committed)
 
-Pre-processed Mistral docs HTML lives under `sample_data/mistral_docs/` (isolated article HTML + `.meta.json` sidecars). Ingest uses `DocsHTMLFileLoader` → `HTMLExtractor` → heading-aware split → citation metadata → embed → Vespa.
+Fetch live docs URLs and write isolated HTML + `.meta.json` sidecars to `sample_data/mistral_docs/`:
 
 ```bash
-make setup-vespa
+make preprocess-docs                                    # all URLs in sample_data/urls.txt
+make preprocess-docs url="https://docs.mistral.ai/studio/conversations/reasoning"
+```
+
+### Ingest documents
+
+Preprocessed Mistral docs use a dedicated pipeline: `DocsHTMLFileLoader` → `HTMLExtractor` → heading-aware split → citation metadata → embed → Vespa.
+
+```bash
 make ingest path=sample_data/mistral_docs
 ```
 
@@ -44,14 +83,6 @@ Other local files still use plain-text or OCR pipelines:
 
 ```bash
 make ingest path=sample_data/hello.txt
-make ingest path=sample_data
-```
-
-To refresh docs HTML from the live site (requires network):
-
-```bash
-make preprocess-docs
-make preprocess-docs url="https://docs.mistral.ai/studio/conversations/reasoning"
 ```
 
 Inspect markdown and chunks before indexing (no Vespa, no API key):
@@ -64,13 +95,13 @@ make inspect-docs chunk_size=1   # per-section debug view
 
 ### Search the collection
 
-Uses `QueryEngine` with `VectorRetriever` (hybrid BM25 + vector via Vespa):
+Hybrid BM25 + vector search via Vespa `hybrid-search` query profile:
 
 ```bash
-make search query="hello world"
+make search query="how does function calling work"
 ```
 
-Ranking weights live in a Vespa **query profile**, not in the request. The search defaults to the `hybrid-search` profile (tuned BM25 + vector weights, defined in `src/search_app/migrations/001_vespa_create_index_schema.py`).
+Ranking weights live in the Vespa query profile (`src/search_app/migrations/001_vespa_create_index_schema.py`), not in the search request.
 
 ### Run the tests
 
@@ -78,36 +109,37 @@ Ranking weights live in a Vespa **query profile**, not in the request. The searc
 make test
 ```
 
-One round-trip: a document is indexed and searched back through the same `get_index` the
-entrypoints use. It skips unless the backend is set up, so it is safe to run before
-`make setup-vespa`.
+Includes offline docs HTML extraction tests and an optional index-and-search round-trip (skips if Vespa is not running).
 
 ### MCP server
 
-The sample app includes an MCP server which exposes search, agentic navigation, and ingest as MCP tools so agents (Vibe, Claude Code, etc.) can query and populate the local index directly.
+MCP exposes **retrieval and navigation** tools for agents (Vibe, Claude Code, etc.). Ingestion is via CLI only — the MCP `ingest` tool returns guidance to use `make preprocess-docs` and `make ingest`.
 
-The server fails fast at startup with a clear error if `MISTRAL_API_KEY` is missing or if the search index does not support agentic navigation. Vespa must be running before you start the server (`make start-vespa`).
+Vespa must be running before you start the server (`make start-vespa`). The server fails fast if `MISTRAL_API_KEY` is missing or the index does not support agentic navigation.
 
 **Available tools:**
 
 | Tool | Description |
 |------|-------------|
-| `search(query, top_k=5)` | Hybrid BM25 + vector search; returns ranked chunks with **id**, score, content, source_id, locator, **start_offset**, **end_offset**, and metadata |
-| `ingest(uri)` | Ingest a local path/directory, `file://` URI, or `http(s)://` URL; text files use plain-text extraction, everything else uses Mistral OCR |
-| `open(chunk_id, window=2)` | Expand context around a chunk from search — pass the chunk `id`, the server resolves its position and returns the anchor chunk plus `window` neighbours on each side, in reading order; `window` controls the radius |
-| `navigate(source_id, start_offset, end_offset, direction, top_k=1)` | Step through a document from a known position; `direction` is `"next"` or `"previous"` |
-| `read(source_id, start_offset=None, end_offset=None, top_k=20)` | Fetch a known offset range directly, no context expansion; omit either bound to read from the start or to the end |
-| `grep(source_id, pattern, mode="phrase", top_k=5)` | Lexical search within a single source; `mode` is `"phrase"` (ordered) or `"term"` (any order) |
+| `search(query, top_k=5)` | Hybrid BM25 + vector search; returns ranked chunks with **id**, score, content, source_id, locator, offsets, and metadata (`citation_url`, `heading`) |
+| `open(chunk_id, window=2)` | Expand context around a search hit within the same page |
+| `grep(source_id, pattern, mode="phrase", top_k=5)` | Lexical search within one indexed page |
+| `navigate(source_id, start_offset, end_offset, direction, top_k=1)` | Step forward/back through a document |
+| `read(source_id, start_offset=None, end_offset=None, top_k=20)` | Fetch a known offset range directly |
+| `delete(source_id)` | Remove a page and all its chunks from the index |
+| `ingest(uri)` | Not implemented — directs to CLI ingest |
+
+Each chunk carries `metadata.citation_url` (section deep-link when available) and `metadata.heading` for grounded answers.
 
 ### Vibe CLI
 
-Run `vibe` from this project directory. It automatically reads `.vibe/config.toml` and connects to the server via stdio — no manual setup needed. You can immediately ask Vibe to search or ingest documents.
+Run `vibe` from this project directory. It reads `.vibe/config.toml` and connects to the MCP server via stdio.
 
-> On first run, Vibe will ask you to trust this directory before loading the project config. Accept the prompt, or pass `--trust` to skip it for that session.
+> On first run, Vibe will ask you to trust this directory. Accept the prompt, or pass `--trust`.
 
 ### Claude Code
 
-Open this project directory in Claude Code. It automatically reads `.mcp.json` and connects to the server via stdio — no manual setup needed. You can immediately ask Claude to search or ingest documents.
+Open this project directory in Claude Code. It reads `.mcp.json` and connects to the MCP server via stdio.
 
 ### MCP Inspector
 
@@ -135,19 +167,21 @@ make generate-vespa-lock
 ```
 src/
 ├── entrypoints/
-│   ├── ingest.py      # mistralai.search.toolkit.ingestion.pipelines.Pipeline
 │   ├── preprocess_docs.py  # fetch docs.mistral.ai → sample_data/mistral_docs/
-│   ├── inspect_docs.py     # preview markdown/chunks before ingest (no Vespa)
-│   ├── mcp_server.py  # MCP server (search + navigation + ingest tools)
-│   └── search.py      # mistralai.search.toolkit.retrieval.QueryEngine
+│   ├── ingest.py           # Pipeline ingest (docs HTML vs plain-text/OCR)
+│   ├── inspect_docs.py     # preview markdown/chunks before ingest
+│   ├── search.py           # QueryEngine hybrid search
+│   └── mcp_server.py         # MCP server (search + navigation)
 └── search_app/
-    ├── __init__.py    # VespaApp — mistralai.search.toolkit.plugins.vespa
-    └── migrations/    # mistral-vespa migrate
-tests/                # make test — one index-and-search round-trip
-.mcp.json             # MCP server config (auto-loaded by Claude Code)
-.vibe/config.toml     # MCP server config (auto-loaded by Vibe CLI)
-sample_data/          # Sample documents
-vespa/bruno/vespa/    # Generated by `make bruno` (optional)
+    ├── docs_html.py        # isolate_article, chunking, citation metadata
+    ├── query.py              # shared search wiring
+    └── migrations/           # Vespa schema
+sample_data/
+├── urls.txt                  # URLs for preprocess-docs
+└── mistral_docs/             # committed preprocessed HTML + .meta.json
+tests/                        # docs extraction + optional round-trip
+interview_notes.md            # design decisions and demo script
+.mcp.json / .vibe/config.toml # MCP server config
 ```
 
 ## Development
