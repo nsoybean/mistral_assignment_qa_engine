@@ -17,7 +17,8 @@ The Q&A engine is split into two phases:
 
 Preprocessed HTML for 13 Studio conversation pages lives under `sample_data/mistral_docs/` (committed to the repo so review is offline and deterministic).
 
-For reviewers 👇:
+💡For reviewers 👇:
+
 **Design decisions, trade-offs, and demo script:** [interview_notes.md](interview_notes.md)
 
 ## Setup
