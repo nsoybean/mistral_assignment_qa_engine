@@ -42,13 +42,13 @@ Delivery
 **Key modules:** 
 
 preprocess + chunking:
-`src/entrypoints/preprocess_docs.py`, `src/entrypoints/ingest.py`
+[src/entrypoints/preprocess_docs.py](src/entrypoints/preprocess_docs.py), [src/entrypoints/ingest.py](src/entrypoints/ingest.py)
 
 query: 
-`src/entrypoints/search.py`
+[src/entrypoints/search.py](src/entrypoints/search.py)
 
 mcp:
-`src/entrypoints/mcp_server.py`
+[src/entrypoints/mcp_server.py](src/entrypoints/mcp_server.py)
 
 ---
 
