@@ -160,13 +160,13 @@ make generate-vespa-lock
 src/
 ├── entrypoints/
 │   ├── preprocess_docs.py  # fetch docs.mistral.ai → sample_data/mistral_docs/
-│   ├── ingest.py           # Pipeline ingest (docs HTML vs plain-text/OCR)
+│   ├── ingest.py           # ingest pipeline
 │   ├── inspect_docs.py     # preview markdown/chunks before ingest
-│   ├── search.py           # QueryEngine hybrid search
+│   ├── search.py           # search
 │   └── mcp_server.py         # MCP server (search + navigation)
 └── search_app/
-    ├── docs_html.py        # isolate_article, chunking, citation metadata
-    ├── query.py              # shared search wiring
+    ├── docs_html.py        # parsing, chunking module
+    ├── query.py              # search module
     └── migrations/           # Vespa schema
 sample_data/
 ├── urls.txt                  # URLs for preprocess-docs
@@ -174,11 +174,4 @@ sample_data/
 tests/                        # docs extraction + optional round-trip
 interview_notes.md            # design decisions and demo script
 .mcp.json / .vibe/config.toml # MCP server config
-```
-
-## Development
-
-```bash
-uv run ruff format .
-uv run ruff check --fix .
 ```
