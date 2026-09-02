@@ -44,12 +44,20 @@ vibe               # agent Q&A via MCP (reads .vibe/config.toml), agent should p
 
 Example queries:
 
-```
-"does mistral 3 14B support tool calling?"
-"how do i use prompt registry (fixed version) and set reasoning to high?"
-"how do i handle thinking chunk"
-```
+simple query: 
 
+`does mistral 3 14B support tool calling?`
+
+![Simple keyword query example](public/keyword_query.png)
+
+
+
+
+
+complex query, where query spans across multple docs: 
+
+`how do i use prompt registry (fixed version) and set reasoning to 'high'`
+![Complex query example](public/complex_query.png)
 
 
 ## Commands
