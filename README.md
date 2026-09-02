@@ -44,13 +44,13 @@ vibe               # agent Q&A via MCP (reads .vibe/config.toml), agent should p
 
 Example queries:
 
-simple query: 
+Simple query: 
 
 `does mistral 3 14B support tool calling?`
 
 ![Simple keyword query example](public/keyword_query.png)
 
-complex query, where query spans across multiple docs: 
+Complex query, where query spans across multiple docs. Note returned citations at the bottom returns links to granular sections whenever possible.
 
 `how do i use prompt registry (fixed version) and set reasoning to 'high'`
 ![Complex query example](public/complex_query.png)
