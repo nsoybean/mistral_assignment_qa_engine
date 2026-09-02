@@ -59,8 +59,9 @@ async def main() -> None:
 
     print(f"\nResults ({len(result.results)}):")
     for i, hit in enumerate(result.results, 1):
-        preview = hit.chunk.content[:500]
+        preview = hit.chunk.content
         # comment out truncating
+        # preview = hit.chunk.content[:500]
         # if len(hit.chunk.content) > 500:
         #     preview += "\n[---content truncated---]"
         print(f"\n--- Result {i} ---")
