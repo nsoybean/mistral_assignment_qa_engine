@@ -64,7 +64,7 @@ preprocess-docs:
 ## Usage: make inspect-docs
 ##        make inspect-docs path=sample_data/mistral_docs/studio/conversations/reasoning.html
 ##        make inspect-docs content=1
-##        make inspect-docs chunk_size=1000
+##        make inspect-docs chunk_size=1   # per-section debug view
 inspect-docs:
 	uv run python -m entrypoints.inspect_docs \
 		$(or $(path),sample_data/mistral_docs/studio/conversations/chat-completion.html) \

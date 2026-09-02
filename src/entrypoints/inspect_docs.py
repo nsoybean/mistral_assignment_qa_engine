@@ -3,6 +3,9 @@
 Runs the same path as ingest up to chunk enrichment: local ``.html`` +
 ``.meta.json`` → ``HTMLExtractor`` → ``MarkdownTextSplitter`` → citation metadata.
 
+Defaults match ingest (``chunk_size=1000``, ``chunk_overlap=100``). Use
+``--chunk-size 1`` for a per-header-section debug view.
+
 Usage:
     python -m entrypoints.inspect_docs sample_data/mistral_docs/studio/conversations/chat-completion.html
     python -m entrypoints.inspect_docs sample_data/mistral_docs --content
@@ -31,8 +34,6 @@ from search_app.docs_html import (
 
 _DEFAULT_PATH = DEFAULT_SAMPLE_DIR / "studio/conversations/chat-completion.html"
 _HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$", re.MULTILINE)
-_INSPECT_CHUNK_SIZE = 1
-
 
 def _collect_html_paths(path: Path) -> list[Path]:
     if path.is_file():
@@ -137,19 +138,19 @@ def main() -> None:
     parser.add_argument(
         "--chunk-size",
         type=int,
-        default=_INSPECT_CHUNK_SIZE,
+        default=DEFAULT_CHUNK_SIZE,
         help=(
-            f"Max merged chars per header group (default {_INSPECT_CHUNK_SIZE} for "
-            f"per-section view; ingest uses {DEFAULT_CHUNK_SIZE})."
+            f"Max merged chars per header group (default {DEFAULT_CHUNK_SIZE}, "
+            "same as ingest; use 1 for per-section debug view)."
         ),
     )
     parser.add_argument(
         "--chunk-overlap",
         type=int,
-        default=0,
+        default=DEFAULT_CHUNK_OVERLAP,
         help=(
-            f"Overlap between separator sub-chunks (default 0 here; "
-            f"ingest uses {DEFAULT_CHUNK_OVERLAP})."
+            f"Overlap between separator sub-chunks (default {DEFAULT_CHUNK_OVERLAP}, "
+            "same as ingest)."
         ),
     )
     parser.add_argument(

@@ -58,7 +58,8 @@ Inspect markdown and chunks before indexing (no Vespa, no API key):
 
 ```bash
 make inspect-docs content=1
-make inspect-docs path=sample_data/mistral_docs chunk_size=1000
+make inspect-docs path=sample_data/mistral_docs
+make inspect-docs chunk_size=1   # per-section debug view
 ```
 
 ### Search the collection
