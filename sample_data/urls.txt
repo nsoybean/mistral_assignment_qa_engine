@@ -1,6 +1,3 @@
-# Mistral docs pages to pre-process into sample_data/mistral_docs/
-# Run: make preprocess-docs
-
 https://docs.mistral.ai/studio/conversations/chat-completion
 https://docs.mistral.ai/studio/conversations/chat-completion/prompting
 https://docs.mistral.ai/studio/conversations/chat-completion/prompt-registry
@@ -14,4 +11,3 @@ https://docs.mistral.ai/studio/conversations/structured-output
 https://docs.mistral.ai/studio/conversations/structured-output/custom
 https://docs.mistral.ai/studio/conversations/structured-output/json_mode
 https://docs.mistral.ai/studio/conversations/moderation
-
