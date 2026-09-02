@@ -73,24 +73,16 @@ make preprocess-docs url="https://docs.mistral.ai/studio/conversations/reasoning
 
 ### Ingest documents
 
-Preprocessed Mistral docs use a dedicated pipeline: `DocsHTMLFileLoader` → `HTMLExtractor` → heading-aware split → citation metadata → embed → Vespa.
+Preprocessed Mistral HTML docs use a dedicated pipeline: `DocsHTMLFileLoader` → `HTMLExtractor` → heading-aware split → chunk enricher → embed → Vespa.
 
 ```bash
 make ingest path=sample_data/mistral_docs
 ```
 
-Other local files still use plain-text or OCR pipelines:
-
-```bash
-make ingest path=sample_data/hello.txt
-```
-
 Inspect markdown and chunks before indexing (no Vespa, no API key):
 
 ```bash
-make inspect-docs content=1
-make inspect-docs path=sample_data/mistral_docs
-make inspect-docs chunk_size=1   # per-section debug view
+make inspect-docs content=1 path=sample_data/mistral_docs/studio/conversations/chat-completion.html # example
 ```
 
 ### Search the collection
@@ -98,7 +90,7 @@ make inspect-docs chunk_size=1   # per-section debug view
 Hybrid BM25 + vector search via Vespa `hybrid-search` query profile:
 
 ```bash
-make search query="how does function calling work"
+make search query="how do i handle thinking chunk"
 ```
 
 Ranking weights live in the Vespa query profile (`src/search_app/migrations/001_vespa_create_index_schema.py`), not in the search request.
@@ -113,7 +105,7 @@ Includes offline docs HTML extraction tests and an optional index-and-search rou
 
 ### MCP server
 
-MCP exposes **retrieval and navigation** tools for agents (Vibe, Claude Code, etc.). Ingestion is via CLI only — the MCP `ingest` tool returns guidance to use `make preprocess-docs` and `make ingest`.
+MCP exposes **retrieval and navigation** tools for agents (Vibe, Claude Code, etc.).
 
 Vespa must be running before you start the server (`make start-vespa`). The server fails fast if `MISTRAL_API_KEY` is missing or the index does not support agentic navigation.
 
@@ -127,7 +119,7 @@ Vespa must be running before you start the server (`make start-vespa`). The serv
 | `navigate(source_id, start_offset, end_offset, direction, top_k=1)` | Step forward/back through a document |
 | `read(source_id, start_offset=None, end_offset=None, top_k=20)` | Fetch a known offset range directly |
 | `delete(source_id)` | Remove a page and all its chunks from the index |
-| `ingest(uri)` | Not implemented — directs to CLI ingest |
+| `ingest(uri)` | For scope of this assignment: Not implemented — directs to CLI ingest |
 
 Each chunk carries `metadata.citation_url` (section deep-link when available) and `metadata.heading` for grounded answers.
 
