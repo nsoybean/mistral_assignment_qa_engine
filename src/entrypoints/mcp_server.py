@@ -67,7 +67,11 @@ Retrieval loop:
 
 Prefer retrieved chunks over general knowledge for API parameters, model
 names, and code examples. Known index gaps: collapsed FAQ answers and
-inactive code-tab languages (TypeScript, curl) may be missing.""",
+inactive code-tab languages (TypeScript, curl) may be missing.
+
+Indexing is not available via MCP. Use the CLI: `make preprocess-docs` then
+`make ingest path=sample_data/mistral_docs`. The `ingest` tool exists only to
+return that guidance.""",
 )
 
 
@@ -111,6 +115,25 @@ async def search(query: str, top_k: int = 5) -> list[dict]:
         query_engine=_query_engine,
     )
     return _format_chunks(result.results)
+
+
+@mcp.tool()
+async def ingest(uri: str) -> str:
+    """Not implemented — index documents via the CLI, not MCP.
+
+    Args:
+        uri: Ignored.
+
+    Raises:
+        ToolError: Always. Use `make preprocess-docs` then
+            `make ingest path=sample_data/mistral_docs`.
+    """
+    _ = uri
+    raise ToolError(
+        "ingest is not implemented via MCP. Run ingestion with: "
+        "make preprocess-docs  "
+        "Then index with: make ingest path=sample_data/mistral_docs"
+    )
 
 
 @mcp.tool()
