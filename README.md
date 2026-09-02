@@ -22,10 +22,14 @@ Preprocessed HTML for 13 Studio conversation pages lives under `sample_data/mist
 **Design decisions, trade-offs, and demo script:** [interview_notes.md](interview_notes.md)
 
 ## Setup
+
 Set key in `.env`
+
 ```bash
 MISTRAL_API_KEY=****
 ```
+
+
 
 ## Quick start (reviewer)
 
@@ -38,13 +42,18 @@ make test          # offline extraction/chunking tests
 vibe               # agent Q&A via MCP (reads .vibe/config.toml), agent should provide citation back to https://docs.mistral.ai/studio/conversations/reasoning#handling-thinking-chunks
 ```
 
-Example queries: 
-`does mistral 3 14B support tool calling?` 
-`how do i handle thinking chunk`
+Example queries:
+
+```
+does mistral 3 14B support tool calling? 
+how do i handle thinking chunk
+```
 
 
 
 ## Commands
+
+
 
 ### Start Vespa and apply schema migrations
 
@@ -63,6 +72,8 @@ make reset-vespa
 make setup-vespa
 ```
 
+
+
 ### Preprocess docs (optional — corpus already committed)
 
 Fetch live docs URLs and write isolated HTML + `.meta.json` sidecars to `sample_data/mistral_docs/`:
@@ -71,6 +82,8 @@ Fetch live docs URLs and write isolated HTML + `.meta.json` sidecars to `sample_
 make preprocess-docs                                    # all URLs in sample_data/urls.txt
 make preprocess-docs url="https://docs.mistral.ai/studio/conversations/reasoning"
 ```
+
+
 
 ### Ingest documents
 
@@ -85,6 +98,8 @@ Inspect markdown and chunks before indexing (no Vespa, no API key):
 ```bash
 make inspect-docs content=1 path=sample_data/mistral_docs/studio/conversations/chat-completion.html # example
 ```
+
+
 
 ### Search the collection
 
@@ -112,15 +127,17 @@ Vespa must be running before you start the server (`make start-vespa`). The serv
 
 **Available tools:**
 
-| Tool | Description |
-|------|-------------|
-| `search(query, top_k=5)` | Hybrid BM25 + vector search; returns ranked chunks with **id**, score, content, source_id, locator, offsets, and metadata (`citation_url`, `heading`) |
-| `open(chunk_id, window=2)` | Expand context around a search hit within the same page |
-| `grep(source_id, pattern, mode="phrase", top_k=5)` | Lexical search within one indexed page |
-| `navigate(source_id, start_offset, end_offset, direction, top_k=1)` | Step forward/back through a document |
-| `read(source_id, start_offset=None, end_offset=None, top_k=20)` | Fetch a known offset range directly |
-| `delete(source_id)` | Remove a page and all its chunks from the index |
-| `ingest(uri)` | For scope of this assignment: Not implemented — directs to CLI ingest |
+
+| Tool                                                                | Description                                                                                                                                           |
+| ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `search(query, top_k=5)`                                            | Hybrid BM25 + vector search; returns ranked chunks with **id**, score, content, source_id, locator, offsets, and metadata (`citation_url`, `heading`) |
+| `open(chunk_id, window=2)`                                          | Expand context around a search hit within the same page                                                                                               |
+| `grep(source_id, pattern, mode="phrase", top_k=5)`                  | Lexical search within one indexed page                                                                                                                |
+| `navigate(source_id, start_offset, end_offset, direction, top_k=1)` | Step forward/back through a document                                                                                                                  |
+| `read(source_id, start_offset=None, end_offset=None, top_k=20)`     | Fetch a known offset range directly                                                                                                                   |
+| `delete(source_id)`                                                 | Remove a page and all its chunks from the index                                                                                                       |
+| `ingest(uri)`                                                       | For scope of this assignment: Not implemented — directs to CLI ingest                                                                                 |
+
 
 Each chunk carries `metadata.citation_url` (section deep-link when available) and `metadata.heading` for grounded answers.
 
@@ -129,6 +146,8 @@ Each chunk carries `metadata.citation_url` (section deep-link when available) an
 Run `vibe` from this project directory. It reads `.vibe/config.toml` and connects to the MCP server via stdio.
 
 > On first run, Vibe will ask you to trust this directory. Accept the prompt, or pass `--trust`.
+
+
 
 ### Claude Code
 
@@ -140,6 +159,8 @@ Open this project directory in Claude Code. It reads `.mcp.json` and connects to
 make mcp
 npx @modelcontextprotocol/inspector http://127.0.0.1:8000/mcp
 ```
+
+
 
 ### Bruno API files (optional)
 
@@ -154,6 +175,8 @@ Opens collection under `vespa/bruno/vespa/` (uses `WORKSPACE_ROOT=.` from `.env`
 ```bash
 make generate-vespa-lock
 ```
+
+
 
 ## Project layout
 
@@ -176,3 +199,4 @@ tests/                        # docs extraction + optional round-trip
 interview_notes.md            # design decisions and demo script
 .mcp.json / .vibe/config.toml # MCP server config
 ```
+
