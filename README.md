@@ -50,15 +50,10 @@ simple query:
 
 ![Simple keyword query example](public/keyword_query.png)
 
-
-
-
-
-complex query, where query spans across multple docs: 
+complex query, where query spans across multiple docs: 
 
 `how do i use prompt registry (fixed version) and set reasoning to 'high'`
 ![Complex query example](public/complex_query.png)
-
 
 ## Commands
 
