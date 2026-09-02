@@ -29,7 +29,7 @@ from mistralai.search.toolkit.context import IngestContext
 from mistralai.search.toolkit.document import Document, DocumentChunk
 from mistralai.search.toolkit.ingestion import File
 from mistralai.search.toolkit.ingestion.extractors import HTMLExtractor
-from mistralai.search.toolkit.ingestion.loaders import FileLoader
+from mistralai.search.toolkit.ingestion.loaders import FilesystemFileLoader
 from mistralai.search.toolkit.ingestion.processor import DocumentProcessor
 from mistralai.search.toolkit.ingestion.text_splitters import (
     MarkdownTextSplitter,
@@ -170,17 +170,18 @@ async def preprocess_docs_page(
     return html_path, meta_path
 
 
-class DocsHTMLFileLoader(FileLoader):
+class DocsHTMLFileLoader(FilesystemFileLoader):
     """Custom file loader for preprocessed docs HTML; ``source_id`` is the canonical page URL from ``.meta.json``."""
 
     @override
-    async def load_file(self, path: Path, context: IngestContext | None = None) -> File:
-        _ = context
+    async def load_file(self, file_location: Path | str) -> File:
+        path = Path(file_location)
         meta = load_docs_meta(path)
+        file = await super().load_file(file_location)
         return File(
             path=meta.url,
-            name=path.name,
-            raw=path.read_bytes(),
+            name=file.name,
+            raw=file.raw,
             source_id=meta.url,
         )
 
@@ -240,16 +241,10 @@ async def parse_saved_docs_page(
 ) -> DocsPage:
     """Parse a preprocessed local HTML file (already passed through ``isolate_article``)."""
     meta = load_docs_meta(html_path)
-    article_html = html_path.read_text(encoding="utf-8")
+    file = await DocsHTMLFileLoader().load_file(html_path)
+    article_html = file.raw.decode("utf-8")
 
-    extractor = HTMLExtractor()
-    file = File(
-        path=meta.url,
-        name=html_path.name,
-        raw=article_html.encode("utf-8"),
-        source_id=meta.url,
-    )
-    document = await extractor.extract(file)
+    document = await HTMLExtractor().extract(file)
 
     splitter = MarkdownTextSplitter(
         markdown_splitter_config(
