@@ -9,7 +9,6 @@ import httpx
 from dotenv import load_dotenv
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
-from mistralai.client import Mistral
 from mistralai.search.toolkit.embedders import MistralEmbedder
 from mistralai.search.toolkit.document import compute_id
 from mistralai.search.toolkit.ingestion import File
@@ -23,10 +22,9 @@ from mistralai.search.toolkit.ingestion.text_splitters import (
     MarkdownTextSplitter,
     MarkdownTextSplitterConfig,
 )
-from mistralai.search.toolkit.retrieval import QueryEngine, VectorRetriever
 from mistralai.search.toolkit.search import GrepMode, NavigableIndex, NavigationDirection
 from mistralai.search.toolkit.search.errors import DocumentNotFoundError
-from search_app import get_index
+from search_app.query import create_query_engine, get_collection_name, get_mistral_client, search as run_search
 
 load_dotenv(override=True)
 
@@ -40,23 +38,19 @@ _api_key = os.environ.get("MISTRAL_API_KEY", "")
 if not _api_key:
     raise RuntimeError("MISTRAL_API_KEY is not set. Check your .env file.")
 
-_collection_name = os.environ.get("COLLECTION_NAME", "exampledocs")
-
-_mistral_client = Mistral(
-    api_key=_api_key,
-    server_url=os.getenv("MISTRAL_API_URL", "https://api.mistral.ai"),
-)
+_collection_name = get_collection_name()
+_mistral_client = get_mistral_client()
 _embedder = MistralEmbedder(client=_mistral_client)
-_vector_store = get_index(_collection_name)
+_query_engine, _vector_store = create_query_engine(
+    collection=_collection_name,
+    client=_mistral_client,
+)
 if not isinstance(_vector_store, NavigableIndex):
     raise RuntimeError(
         "The search index does not support agentic navigation. "
         "Ensure IndexingMode.DOCUMENT_PER_CHUNK is used in the schema migration."
     )
 _navigable_store: NavigableIndex = _vector_store
-_query_engine = QueryEngine(
-    retriever=[VectorRetriever(client=_vector_store, embedder=_embedder)],
-)
 
 _loader = FilesystemFileLoader()
 _text_splitter = MarkdownTextSplitter(
@@ -130,11 +124,10 @@ async def search(query: str, top_k: int = 5) -> list[dict]:
         query: Natural-language search query.
         top_k: Maximum number of results to return (default 5).
     """
-    result = await _query_engine.search(
-        query=query,
+    result = await run_search(
+        query,
         top_k=top_k,
-        include_metadata=True,
-        include_content=True,
+        query_engine=_query_engine,
     )
     return _format_chunks(result.results)
 
