@@ -117,6 +117,8 @@ Ranking weights live in the Vespa query profile (`src/search_app/migrations/001_
 
 ## Evaluation
 
+
+
 ### Retrieval evaluation (citation ground truth)
 
 After ingest, score hybrid search against a golden set of queries → expected `citation_url`s:
@@ -131,35 +133,40 @@ make eval-retrieval
 
 ```json
 {"query": "how do i handle thinking chunk", "citation_urls": ["https://docs.mistral.ai/studio/conversations/reasoning#handling-thinking-chunks"]}
-{"query": "multi-hop example", "citation_urls": ["https://docs.mistral.ai/...#a", "https://docs.mistral.ai/...#b"]}
 ```
 
-- `query` — natural-language question (as a user would type it)
-- `citation_urls` — ideal section deep links (use `make inspect-docs chunk_size=1` to find anchors). Keep the `#anchor` even when current chunks only stamp the parent page URL.
+- `query` — natural-language question
+- `citation_urls` — expected section deep links (use `make inspect-docs chunk_size=1` to find anchors)
 
-**Matching rule:** exact `citation_url`, **or** a retrieved **page-level** cite (no hash) on the same page covers a gold section. Mid-chunk headings that inherit the parent page (e.g. Template variables inside a merged Basic-usage chunk) still count as retrieval hits without watering down gold labels.
+Matching is **hierarchical**: a page-level `citation_url` (no `#`) satisfies a section-level gold on the same page, so chunks that inherit the parent URL still count as hits.
 
 **Metrics we report** (intentionally just three):
 
-| Metric | What it measures | Demo line |
-| ------ | ---------------- | --------- |
-| **Hit rate** | Share of queries where ≥1 gold is satisfied in the score window | “Did search find a useful section at all?” |
-| **Recall@5** | Share of golds satisfied in the top 5 (avg over queries) | “Multi-hop: did we get *all* required sections?” |
-| **MRR** | Mean of `1/rank` of the first satisfying hit | “How high is the best citation?” |
+
+| Metric       | What it measures                                                | Demo line                                        |
+| ------------ | --------------------------------------------------------------- | ------------------------------------------------ |
+| **Hit rate** | Share of queries where ≥1 gold is satisfied in the score window | “Did search find a useful section at all?”       |
+| **Recall@5** | Share of golds satisfied in the top 5 (avg over queries)        | “Multi-hop: did we get *all* required sections?” |
+| **MRR**      | Mean of `1/rank` of the first satisfying hit                    | “How high is the best citation?”                 |
+
 
 Retrieve `top_k=10` so MRR can see ranks past 5; score Recall/Hit at 5.
 
 **Chunk-size sweep results** (18-query golden set, heading-split strategy held constant):
 
-| Config | chunk_size | chunk_max_size | overlap | Chunks | Hit rate | Recall@5 | MRR |
-| ------ | ---------- | -------------- | ------- | ------ | -------- | -------- | ---- |
-| Small | 400 | 1000 | 50 | 360 | 0.889 | 0.889 | 0.763 |
-| **Default** | **800** | **2000** | **100** | **196** | **0.944** | **0.944** | **0.769** |
-| Large | 1500 | 4000 | 200 | 104 | 0.889 | 0.889 | 0.718 |
 
-Heading-based splitting is the biggest contributor to retrieval quality. Size tuning validates the default — too small fragments code blocks, too large merges unrelated sections. See [`interview_notes.md`](interview_notes.md) for detailed findings.
+| Config      | chunk_size | chunk_max_size | overlap | Chunks  | Hit rate  | Recall@5  | MRR       |
+| ----------- | ---------- | -------------- | ------- | ------- | --------- | --------- | --------- |
+| Small       | 400        | 1000           | 50      | 360     | 0.889     | 0.889     | 0.763     |
+| **Default** | **800**    | **2000**       | **100** | **196** | **0.944** | **0.944** | **0.769** |
+| Large       | 1500       | 4000           | 200     | 104     | 0.889     | 0.889     | 0.718     |
+
+
+Heading-based splitting is the biggest contributor to retrieval quality. Size tuning validates the default — too small fragments code blocks, too large merges unrelated sections. See `[interview_notes.md](interview_notes.md)` for detailed findings.
 
 ## Commands
+
+
 
 ### Run the tests
 
