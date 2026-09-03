@@ -47,12 +47,12 @@ _SLUG_HYPHEN_RE = re.compile(r"[-\s]+")
 HEADERS_TO_SPLIT_ON: list[tuple[str, str]] = [
     ("#", "h1"),
     ("##", "h2"),
-    # ("###", "h3"),
+    ("###", "h3"),
 ]
 
 # Match starter-app ingest defaults;
-DEFAULT_CHUNK_SIZE = 1000
-DEFAULT_CHUNK_MAX_SIZE = 3000
+DEFAULT_CHUNK_SIZE = 800
+DEFAULT_CHUNK_MAX_SIZE = 2000
 DEFAULT_CHUNK_OVERLAP = 100  # about 10% of chunk size
 
 
@@ -70,6 +70,7 @@ def markdown_splitter_config(
         chunk_size=chunk_size,
         chunk_max_size=chunk_max_size,
         chunk_overlap=overlap,
+        strip_whitespace=True,
     )
 
 
