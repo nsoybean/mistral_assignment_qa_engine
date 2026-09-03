@@ -78,14 +78,20 @@ mcp:
 
 ## Retrieval evaluation
 
-**Queries that worked well:**
+**How:** label queries with expected section `citation_url`s in [`sample_data/eval_queries.jsonl`](sample_data/eval_queries.jsonl), then `make eval-retrieval` (uses Search Toolkit `RetrieverEvaluator`, matching on chunk metadata `citation_url`).
 
-| Query | What it demonstrates |
-| ----- | -------------------- |
-| `does mistral 3 14B support tool calling?` | Hybrid keyword match on model name + capability |
-| `how do i handle thinking chunk, show code snippet` | Semantic match + section-level citation with code |
+**Starter queries:**
 
-**Where I expect difficulty (not yet tested deeply):**
+| Query | Gold citation(s) | What it demonstrates |
+| ----- | ---------------- | -------------------- |
+| `how do i handle thinking chunk` | `reasoning#handling-thinking-chunks` | Semantic section match |
+| `how do i pin a prompt registry version` | `prompt-registry#pinning-a-version` | Keyword + section anchor |
+| `…prompt registry… and set reasoning to high` | prompt-registry + reasoning | Multi-hop / multi-page |
+| `five steps of function calling` | `function-calling#five-steps` | Structural heading match |
+
+**Metrics to watch when tuning chunk size / split level:** Hit rate, Recall@5, MRR (see README “Evaluate retrieval” for full metric definitions).
+
+**Where I expect difficulty:**
 
 - Answers requiring evidence from **multiple chunks/pages**
 - Overly complex queries needing **query rewriting** before retrieval

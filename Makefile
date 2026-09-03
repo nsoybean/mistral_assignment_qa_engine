@@ -1,4 +1,4 @@
-.PHONY: installdeps install-workflows ingest search mcp preprocess-docs inspect-docs test start-examples execute-ingestion
+.PHONY: installdeps install-workflows ingest search mcp preprocess-docs inspect-docs eval-retrieval test start-examples execute-ingestion
 .PHONY: setup-vespa start-vespa verify-vespa stop-vespa reset-vespa migrate-vespa bruno generate-vespa-lock
 
 ifneq (,$(wildcard .env))
@@ -77,6 +77,17 @@ inspect-docs:
 ## Usage: make search query="hello world" [top_k=5] [query_profile=hybrid-search]
 search:
 	uv run python -m entrypoints.search "$(query)" $(if $(top_k),--top-k $(top_k),) $(if $(query_profile),--query-profile $(query_profile),)
+
+## Evaluate retrieval against citation_url ground truth (requires Vespa + ingested corpus)
+## Usage: make eval-retrieval
+##        make eval-retrieval dataset=sample_data/eval_queries.jsonl top_k=10
+##        make eval-retrieval output=eval_summary.json
+eval-retrieval:
+	uv run python -m entrypoints.eval_retrieval \
+		$(or $(dataset),sample_data/eval_queries.jsonl) \
+		$(if $(top_k),--top-k $(top_k),) \
+		$(if $(query_profile),--query-profile $(query_profile),) \
+		$(if $(output),--output $(output),)
 
 ## Start the MCP server in HTTP mode
 ## Usage: make mcp [host=0.0.0.0] [port=8000]
