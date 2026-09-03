@@ -133,21 +133,19 @@ make eval-retrieval
 ```
 
 - `query` — natural-language question (as a user would type it)
-- `citation_urls` — one or more gold section links (use `make inspect-docs chunk_size=1` to discover anchors). Page-level answers may omit `#anchor`.
+- `citation_urls` — ideal section deep links (use `make inspect-docs chunk_size=1` to find anchors). Keep the `#anchor` even when current chunks only stamp the parent page URL.
 
-Matching uses chunk metadata `citation_url`, not chunk IDs, so labels stay valid across re-chunk / re-ingest.
+**Matching rule:** exact `citation_url`, **or** a retrieved **page-level** cite (no hash) on the same page covers a gold section. Mid-chunk headings that inherit the parent page (e.g. Template variables inside a merged Basic-usage chunk) still count as retrieval hits without watering down gold labels.
 
-**Metrics we report** (intentionally just three — enough to compare chunking configs):
+**Metrics we report** (intentionally just three):
 
+| Metric | What it measures | Demo line |
+| ------ | ---------------- | --------- |
+| **Hit rate** | Share of queries where ≥1 gold is satisfied in the score window | “Did search find a useful section at all?” |
+| **Recall@5** | Share of golds satisfied in the top 5 (avg over queries) | “Multi-hop: did we get *all* required sections?” |
+| **MRR** | Mean of `1/rank` of the first satisfying hit | “How high is the best citation?” |
 
-| Metric                             | What it measures                                                                         | Demo line                                                   |
-| ---------------------------------- | ---------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| **Hit rate**                       | Share of queries where **at least one** gold `citation_url` appears in the retrieved set | “Did search find a useful section at all?”                  |
-| **Recall@5**                       | Share of gold citations found in the **top 5** hits (averaged over queries)              | “For multi-hop labels, did we get *all* required sections?” |
-| **MRR (**Mean Reciprocal Rank**)** | Mean of `1/rank` of the **first** gold hit                                               | “How high is the best citation?” (1.0 = always rank 1)      |
-
-
-We retrieve `top_k=10` by default so MRR can see ranks past 5; Recall is scored at 5 because that matches a typical answer context window. Other IR metrics (precision, nDCG, MAP, …) are available in the toolkit but omitted here on purpose.
+Retrieve `top_k=10` so MRR can see ranks past 5; score Recall/Hit at 5.
 
 ### Run the tests
 

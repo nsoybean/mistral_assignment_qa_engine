@@ -1,16 +1,19 @@
 """Evaluate retrieval against a golden citation-URL dataset.
 
-Ground truth is section ``citation_url`` values (stable across re-chunking).
-Add lines to ``sample_data/eval_queries.jsonl``:
+Ground truth is section ``citation_url`` values (ideal deep links). Matching is
+**hierarchical**: a retrieved page-level cite (no ``#anchor``) counts as a hit
+for a gold section on that same page. That matters when chunk merging leaves
+``## Section`` mid-chunk so enrichment inherits the parent page URL — content
+is correct, deep-link metadata is coarser.
 
-    {"query": "how do i handle thinking chunk",
-     "citation_urls": ["https://docs.mistral.ai/studio/conversations/reasoning#handling-thinking-chunks"]}
+Label the *ideal* section URL in the dataset; do not downgrade labels to the
+page URL just because enrichment is currently coarse.
 
-Multi-hop queries list several URLs. Page-level answers may omit the ``#anchor``.
+    {"query": "template variable in prompt",
+     "citation_urls": ["https://docs.mistral.ai/studio/conversations/chat-completion/prompt-registry#template-variables"]}
 
 Usage:
     python -m entrypoints.eval_retrieval
-    python -m entrypoints.eval_retrieval sample_data/eval_queries.jsonl --top-k 10
     make eval-retrieval
 """
 
@@ -20,18 +23,12 @@ import argparse
 import asyncio
 import json
 import time
+from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urldefrag
 
 from dotenv import load_dotenv
-from mistralai.search.toolkit.evals import (
-    EvaluationDataset,
-    EvaluationQuery,
-    EvaluationSummary,
-    RetrieverEvaluator,
-    RetrievalStepResult,
-    save_evaluation_summary_to_json,
-)
-from mistralai.search.toolkit.evals.models import RetrievalMetrics, generate_proxy
+from mistralai.search.toolkit.search import SearchResult
 
 from search_app import DEFAULT_QUERY_PROFILE
 from search_app.query import create_query_engine, get_collection_name, search
@@ -39,64 +36,111 @@ from search_app.query import create_query_engine, get_collection_name, search
 load_dotenv(override=True)
 
 _DEFAULT_DATASET = Path("sample_data/eval_queries.jsonl")
-_CITATION_METADATA_KEY = "citation_url"
-# Demo metrics only — enough to compare chunking configs without IR noise.
 _PRIMARY_K = 5
-_DEFAULT_K_VALUES = [_PRIMARY_K]
 
 
-def _gold_urls(eval_result) -> list[str]:
-    gold = eval_result.relevant_reference_ids or eval_result.relevant_ids
-    prefix = f"{_CITATION_METADATA_KEY}_"
-    return [g.removeprefix(prefix) if g.startswith(prefix) else g for g in gold]
+@dataclass(frozen=True)
+class EvalExample:
+    query: str
+    citation_urls: tuple[str, ...]
 
 
-def _print_focused_summary(summary: EvaluationSummary, *, k: int = _PRIMARY_K) -> None:
-    metrics = summary.workflow_metrics_avg.get("hybrid")
-    print("\n" + "=" * 60)
-    print("RETRIEVAL EVAL (Hit rate / Recall@k / MRR)")
-    print("=" * 60)
-    print(f"Dataset: {summary.dataset_name}")
-    print(f"Queries: {summary.total_queries}")
-    if metrics is None:
-        print("No hybrid metrics.")
-        return
-    recall = metrics.recall_at_k.get(k)
-    print(f"Hit rate:  {metrics.hit_rate:.3f}" if metrics.hit_rate is not None else "Hit rate:  n/a")
-    print(f"Recall@{k}: {recall:.3f}" if recall is not None else f"Recall@{k}: n/a")
-    print(f"MRR:       {metrics.mrr:.3f}" if metrics.mrr is not None else "MRR:       n/a")
-    print("=" * 60)
+@dataclass(frozen=True)
+class QueryScore:
+    query: str
+    gold: tuple[str, ...]
+    hit: bool
+    recall_at_k: float
+    reciprocal_rank: float
+    first_hit_rank: int | None
+    retrieved_citations: tuple[str, ...]
 
 
-def _print_per_query(per_query, *, k: int = _PRIMARY_K) -> None:
-    print(f"\nPer-query (gold citation_url in top results):")
-    for eval_result in per_query:
-        metrics: RetrievalMetrics | None = eval_result.workflow_metrics.get("hybrid")
-        hit = metrics.hit_rate if metrics else None
-        mrr = metrics.mrr if metrics else None
-        recall = metrics.recall_at_k.get(k) if metrics else None
-        status = "HIT" if hit == 1.0 else "MISS"
-        recall_s = f"{recall:.2f}" if recall is not None else "n/a"
-        mrr_s = f"{mrr:.2f}" if mrr is not None else "n/a"
-        print(f"  [{status}] recall@{k}={recall_s}  mrr={mrr_s}  {eval_result.query!r}")
-        print(f"         gold={_gold_urls(eval_result)}")
+@dataclass(frozen=True)
+class EvalSummary:
+    dataset_name: str
+    total_queries: int
+    hit_rate: float
+    recall_at_k: float
+    mrr: float
+    k: int
+    per_query: tuple[QueryScore, ...]
 
 
-def _proxy_for_url(url: str) -> str:
-    """Match ``generate_proxy(..., metadata_keys=['citation_url'])`` format."""
+def citation_satisfies(retrieved: str, gold: str) -> bool:
+    """Exact match, or page-level cite covering a section gold on the same page.
 
-    class _Chunk:
-        metadata = {_CITATION_METADATA_KEY: url}
+    Examples that return True:
+      retrieved == gold
+      gold=.../page#section, retrieved=.../page
+      gold=.../page, retrieved=.../page#anything
+    """
+    if retrieved == gold:
+        return True
+    gold_base, gold_frag = urldefrag(gold)
+    ret_base, ret_frag = urldefrag(retrieved)
+    if gold_base.rstrip("/") != ret_base.rstrip("/"):
+        return False
+    # Parent page cite satisfies a more specific section label.
+    if gold_frag and not ret_frag:
+        return True
+    # Page-level gold accepts any section deep-link on that page.
+    if not gold_frag:
+        return True
+    return False
 
-    return generate_proxy(_Chunk(), [_CITATION_METADATA_KEY])  # type: ignore[arg-type]
+
+def _retrieved_citations(results: list[SearchResult]) -> list[str]:
+    citations: list[str] = []
+    for hit in results:
+        url = hit.chunk.metadata.get("citation_url")
+        if url is None:
+            citations.append("")
+        else:
+            citations.append(str(url))
+    return citations
 
 
-def load_citation_dataset(path: Path) -> EvaluationDataset:
-    """Load JSONL with ``query`` + ``citation_urls`` (or toolkit-native fields)."""
+def score_query(
+    *,
+    query: str,
+    gold: tuple[str, ...],
+    results: list[SearchResult],
+    k: int,
+) -> QueryScore:
+    retrieved = _retrieved_citations(results)
+    top = retrieved[:k]
+
+    matched_golds = {
+        g for g in gold if any(citation_satisfies(r, g) for r in top if r)
+    }
+    recall = len(matched_golds) / len(gold) if gold else 0.0
+    hit = len(matched_golds) > 0
+
+    first_rank: int | None = None
+    for i, r in enumerate(retrieved, start=1):
+        if r and any(citation_satisfies(r, g) for g in gold):
+            first_rank = i
+            break
+    rr = (1.0 / first_rank) if first_rank is not None else 0.0
+
+    return QueryScore(
+        query=query,
+        gold=gold,
+        hit=hit,
+        recall_at_k=recall,
+        reciprocal_rank=rr,
+        first_hit_rank=first_rank,
+        retrieved_citations=tuple(retrieved[:k]),
+    )
+
+
+def load_citation_dataset(path: Path) -> list[EvalExample]:
+    """Load JSONL with ``query`` + ``citation_urls``."""
     if not path.is_file():
         raise FileNotFoundError(f"Dataset not found: {path}")
 
-    queries: list[EvaluationQuery] = []
+    examples: list[EvalExample] = []
     with path.open(encoding="utf-8") as handle:
         for line_num, line in enumerate(handle, 1):
             line = line.strip()
@@ -112,91 +156,116 @@ def load_citation_dataset(path: Path) -> EvaluationDataset:
                 raise ValueError(f"Missing 'query' on line {line_num}")
 
             citation_urls = data.get("citation_urls")
-            if citation_urls is not None:
-                if not isinstance(citation_urls, list) or not citation_urls:
-                    raise ValueError(
-                        f"'citation_urls' must be a non-empty list on line {line_num}"
-                    )
-                relevant_reference_ids = [_proxy_for_url(str(u)) for u in citation_urls]
-                relevant_ids: list[str] = []
-            elif data.get("relevant_reference_ids") or data.get("relevant_ids"):
-                relevant_reference_ids = data.get("relevant_reference_ids")
-                relevant_ids = data.get("relevant_ids") or []
-            else:
+            if not isinstance(citation_urls, list) or not citation_urls:
                 raise ValueError(
-                    f"Line {line_num}: provide 'citation_urls' "
-                    "(preferred) or toolkit 'relevant_ids' / 'relevant_reference_ids'"
+                    f"'citation_urls' must be a non-empty list on line {line_num}"
                 )
-
-            queries.append(
-                EvaluationQuery(
+            examples.append(
+                EvalExample(
                     query=query_text,
-                    relevant_ids=relevant_ids,
-                    relevant_reference_ids=relevant_reference_ids,
-                    metadata=data.get("metadata") or {},
+                    citation_urls=tuple(str(u) for u in citation_urls),
                 )
             )
 
-    if not queries:
+    if not examples:
         raise ValueError(f"No queries in {path}")
+    return examples
 
-    return EvaluationDataset(
-        queries=queries,
-        name=path.stem,
-        description="Citation-URL retrieval eval",
-    )
+
+def _print_summary(summary: EvalSummary) -> None:
+    print("\n" + "=" * 60)
+    print("RETRIEVAL EVAL (Hit rate / Recall@k / MRR)")
+    print("=" * 60)
+    print(f"Dataset: {summary.dataset_name}")
+    print(f"Queries: {summary.total_queries}")
+    print("Match:   exact citation_url, or parent page covers section gold")
+    print(f"Hit rate:  {summary.hit_rate:.3f}")
+    print(f"Recall@{summary.k}: {summary.recall_at_k:.3f}")
+    print(f"MRR:       {summary.mrr:.3f}")
+    print("=" * 60)
+
+
+def _print_per_query(summary: EvalSummary) -> None:
+    print("\nPer-query:")
+    for q in summary.per_query:
+        status = "HIT" if q.hit else "MISS"
+        rank_s = str(q.first_hit_rank) if q.first_hit_rank is not None else "-"
+        print(
+            f"  [{status}] recall@{summary.k}={q.recall_at_k:.2f}  "
+            f"mrr={q.reciprocal_rank:.2f}  first_rank={rank_s}  {q.query!r}"
+        )
+        print(f"         gold={list(q.gold)}")
+        print(f"         top{summary.k} citations={list(q.retrieved_citations)}")
 
 
 async def _run(args: argparse.Namespace) -> None:
     dataset_path = Path(args.dataset)
-    dataset = load_citation_dataset(dataset_path)
+    examples = load_citation_dataset(dataset_path)
     collection = get_collection_name()
+    k = args.k
 
-    print(f"Dataset: {dataset_path} ({len(dataset.queries)} queries)")
+    print(f"Dataset: {dataset_path} ({len(examples)} queries)")
     print(f"Collection: {collection}")
-    print(f"Top-K: {args.top_k}")
+    print(f"Retrieve top_k: {args.top_k}  |  score Recall@{k} / Hit / MRR")
     print(f"Query profile: {args.query_profile}")
-    print(f"Match on metadata key: {_CITATION_METADATA_KEY}")
 
     query_engine, _ = create_query_engine(query_profile=args.query_profile)
 
-    async def workflow(query: str) -> list[RetrievalStepResult]:
+    scores: list[QueryScore] = []
+    for example in examples:
         started = time.perf_counter()
         result = await search(
-            query,
+            example.query,
             top_k=args.top_k,
             query_profile=args.query_profile,
             query_engine=query_engine,
         )
         elapsed_ms = (time.perf_counter() - started) * 1000
-        return [
-            RetrievalStepResult(
-                step_name="hybrid",
-                results=list(result.results),
-                top_k=args.top_k,
-                execution_time_ms=elapsed_ms,
-                k_values=args.k_values,
-            )
-        ]
+        score = score_query(
+            query=example.query,
+            gold=example.citation_urls,
+            results=list(result.results),
+            k=k,
+        )
+        scores.append(score)
+        print(f"  scored {example.query!r} in {elapsed_ms:.0f}ms → {'HIT' if score.hit else 'MISS'}")
 
-    evaluator = RetrieverEvaluator(
-        k_values=args.k_values,
-        metadata_keys=[_CITATION_METADATA_KEY],
+    summary = EvalSummary(
+        dataset_name=dataset_path.stem,
+        total_queries=len(scores),
+        hit_rate=sum(1 for s in scores if s.hit) / len(scores),
+        recall_at_k=sum(s.recall_at_k for s in scores) / len(scores),
+        mrr=sum(s.reciprocal_rank for s in scores) / len(scores),
+        k=k,
+        per_query=tuple(scores),
     )
-    summary, per_query = await evaluator.evaluate_workflow_dataset_batch_with_results(
-        dataset=dataset,
-        workflow=workflow,
-        batch_size=args.batch_size,
-        max_concurrent_batches=1,
-    )
-
-    primary_k = args.k_values[0] if args.k_values else _PRIMARY_K
-    _print_focused_summary(summary, k=primary_k)
-    _print_per_query(per_query, k=primary_k)
+    _print_summary(summary)
+    _print_per_query(summary)
 
     if args.output:
         out = Path(args.output)
-        save_evaluation_summary_to_json(summary, out)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "dataset_name": summary.dataset_name,
+            "total_queries": summary.total_queries,
+            "hit_rate": summary.hit_rate,
+            f"recall_at_{summary.k}": summary.recall_at_k,
+            "mrr": summary.mrr,
+            "match": "exact_or_parent_page",
+            "per_query": [
+                {
+                    "query": q.query,
+                    "gold": list(q.gold),
+                    "hit": q.hit,
+                    "recall_at_k": q.recall_at_k,
+                    "reciprocal_rank": q.reciprocal_rank,
+                    "first_hit_rank": q.first_hit_rank,
+                    "retrieved_citations": list(q.retrieved_citations),
+                }
+                for q in summary.per_query
+            ],
+        }
+        out.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
         print(f"\nWrote summary JSON to {out}")
 
 
@@ -204,7 +273,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description=(
             "Evaluate hybrid retrieval against citation_url ground truth "
-            "(see sample_data/eval_queries.jsonl)."
+            "(parent-page cites satisfy section golds)."
         )
     )
     parser.add_argument(
@@ -221,11 +290,10 @@ def main() -> None:
         help="Retrieve this many hits per query (default: 10)",
     )
     parser.add_argument(
-        "--k-values",
+        "--k",
         type=int,
-        nargs="+",
-        default=_DEFAULT_K_VALUES,
-        help=f"k for Recall@k (default: {_DEFAULT_K_VALUES}; first value is the reported Recall@k)",
+        default=_PRIMARY_K,
+        help=f"Cutoff for Recall@k / Hit window (default: {_PRIMARY_K})",
     )
     parser.add_argument(
         "--query-profile",
@@ -233,16 +301,10 @@ def main() -> None:
         help=f"Vespa query profile (default: {DEFAULT_QUERY_PROFILE})",
     )
     parser.add_argument(
-        "--batch-size",
-        type=int,
-        default=5,
-        help="Queries per eval batch (default: 5)",
-    )
-    parser.add_argument(
         "--output",
         type=Path,
         default=None,
-        help="Optional path to write EvaluationSummary JSON",
+        help="Optional path to write summary JSON",
     )
     args = parser.parse_args()
     try:

@@ -89,7 +89,7 @@ mcp:
 | `…prompt registry… and set reasoning to high` | prompt-registry + reasoning | Multi-hop / multi-page |
 | `five steps of function calling` | `function-calling#five-steps` | Structural heading match |
 
-**Metrics (Hit rate / Recall@5 / MRR only):** Hit = any gold section found; Recall@5 = all golds in top 5 (multi-hop); MRR = how high the first gold ranked. See README “Evaluate retrieval”.
+**Metrics (Hit rate / Recall@5 / MRR only):** Hit = any gold section found; Recall@5 = all golds in top 5 (multi-hop); MRR = how high the first gold ranked. Matching allows a **page-level** `citation_url` to satisfy a gold `#section` on the same page (chunk merge often leaves `##` mid-chunk so enrichment inherits the parent). Label ideal deep links in `eval_queries.jsonl` anyway. See README “Evaluate retrieval”.
 
 **Where I expect difficulty:**
 
