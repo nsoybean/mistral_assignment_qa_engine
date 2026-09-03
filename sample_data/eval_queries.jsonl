@@ -13,3 +13,6 @@
 {"query": "how does cache token price compare to normal pricing?", "citation_urls": ["https://docs.mistral.ai/studio/conversations/advanced/prompt-caching#track-billing"]}
 {"query": "what are the types of tool choice settings?", "citation_urls": ["https://docs.mistral.ai/studio/conversations/function-calling#step-3"]}
 {"query": "what must developers implement for function calling?", "citation_urls": ["https://docs.mistral.ai/studio/conversations/function-calling#step-4"]}
+{"query": "how to ensure structured output?", "citation_urls": ["https://docs.mistral.ai/studio/conversations/structured-output/custom"]}
+{"query": "what categories of content can be moderated?", "citation_urls": ["https://docs.mistral.ai/studio/conversations/moderation"]}
+{"query": "How to do agent level guardrail?", "citation_urls": ["https://docs.mistral.ai/studio/conversations/moderation#agent-guardrails"]}
