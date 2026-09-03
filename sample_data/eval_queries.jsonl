@@ -9,3 +9,7 @@
 {"query": "what are vision models for? whats the difference between vision and text models?", "citation_urls": ["https://docs.mistral.ai/studio/conversations/vision"]}
 {"query": "which models support reasoning parameter?", "citation_urls": ["https://docs.mistral.ai/studio/conversations/reasoning#before-you-start"]}
 {"query": "how do we set up tool call for rag?", "citation_urls": ["https://docs.mistral.ai/studio/conversations/citations#setup"]}
+{"query": "when is prompt caching ideal and how to enable it?", "citation_urls": ["https://docs.mistral.ai/studio/conversations/advanced/prompt-caching#when-to-use-prompt-caching", "https://docs.mistral.ai/studio/conversations/advanced/prompt-caching#use-prompt-cache-key"]}
+{"query": "how does cache token price compare to normal pricing?", "citation_urls": ["https://docs.mistral.ai/studio/conversations/advanced/prompt-caching#track-billing"]}
+{"query": "what are the types of tool choice settings?", "citation_urls": ["https://docs.mistral.ai/studio/conversations/function-calling#step-3"]}
+{"query": "what must developers implement for function calling?", "citation_urls": ["https://docs.mistral.ai/studio/conversations/function-calling#step-4"]}
