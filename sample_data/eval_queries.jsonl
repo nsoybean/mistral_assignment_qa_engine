@@ -6,9 +6,6 @@
 {"query": "what is prefix flag for?", "citation_urls": ["https://docs.mistral.ai/studio/conversations/chat-completion#other-useful-features"]}
 {"query": "what to avoid when prompting?", "citation_urls": ["https://docs.mistral.ai/studio/conversations/chat-completion/prompting#avoid"]}
 {"query": "what are things to avoid when prompting?", "citation_urls": ["https://docs.mistral.ai/studio/conversations/chat-completion/prompting#avoid"]}
-{"query": "what are vision models for? whats the difference between vision and text models?", 
-"citation_urls": ["https://docs.mistral.ai/studio/conversations/vision"]}
-{"query": "which models support reasoning parameter?", 
-"citation_urls": ["https://docs.mistral.ai/studio/conversations/reasoning#before-you-start"]}
-{"query": "how do we set up tool call for rag?", 
-"citation_urls": ["https://docs.mistral.ai/studio/conversations/citations#setup"]}
+{"query": "what are vision models for? whats the difference between vision and text models?", "citation_urls": ["https://docs.mistral.ai/studio/conversations/vision"]}
+{"query": "which models support reasoning parameter?", "citation_urls": ["https://docs.mistral.ai/studio/conversations/reasoning#before-you-start"]}
+{"query": "how do we set up tool call for rag?", "citation_urls": ["https://docs.mistral.ai/studio/conversations/citations#setup"]}
