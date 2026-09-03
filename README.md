@@ -147,6 +147,16 @@ make eval-retrieval
 
 Retrieve `top_k=10` so MRR can see ranks past 5; score Recall/Hit at 5.
 
+**Chunk-size sweep results** (18-query golden set, heading-split strategy held constant):
+
+| Config | chunk_size | chunk_max_size | overlap | Chunks | Hit rate | Recall@5 | MRR |
+| ------ | ---------- | -------------- | ------- | ------ | -------- | -------- | ---- |
+| Small | 400 | 1000 | 50 | 360 | 0.889 | 0.889 | 0.763 |
+| **Default** | **800** | **2000** | **100** | **196** | **0.944** | **0.944** | **0.769** |
+| Large | 1500 | 4000 | 200 | 104 | 0.889 | 0.889 | 0.718 |
+
+Heading-based splitting is the biggest contributor to retrieval quality. Size tuning validates the default — too small fragments code blocks, too large merges unrelated sections. See [`interview_notes.md`](interview_notes.md) for detailed findings.
+
 ### Run the tests
 
 ```bash
