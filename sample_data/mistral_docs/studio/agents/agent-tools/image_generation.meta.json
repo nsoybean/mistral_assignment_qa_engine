@@ -1,0 +1,15 @@
+{
+  "url": "https://docs.mistral.ai/studio/agents/agent-tools/image_generation",
+  "title": "Image Generation",
+  "breadcrumb": [
+    "Studio",
+    "Agent Tools"
+  ],
+  "heading_anchors": {
+    "create an image generation agent": "create-an-image-generation-agent",
+    "how it works": "how-it-works",
+    "conversations with image generation": "conversation-with-image-generation",
+    "explanation of the outputs": "explanation-of-the-outputs",
+    "download images": "download-images"
+  }
+}

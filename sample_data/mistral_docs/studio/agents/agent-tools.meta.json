@@ -1,0 +1,12 @@
+{
+  "url": "https://docs.mistral.ai/studio/agents/agent-tools",
+  "title": "Tools",
+  "breadcrumb": [
+    "Studio"
+  ],
+  "heading_anchors": {
+    "tool types": "tool-types",
+    "built-in tools": "built-in-tools",
+    "general usage": "general-usage"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "url": "https://docs.mistral.ai/studio/agents/agents-api",
+  "title": "Agents & Conversations",
+  "breadcrumb": [
+    "Studio"
+  ],
+  "heading_anchors": {
+    "objects": "objects",
+    "agents": "agents",
+    "creating an agent": "creating-agent",
+    "conversations": "conversations",
+    "how to manage conversations": "conversations_management"
+  }
+}

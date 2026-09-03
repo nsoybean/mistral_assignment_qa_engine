@@ -1,0 +1,14 @@
+{
+  "url": "https://docs.mistral.ai/studio/agents/handoffs",
+  "title": "Handoffs",
+  "breadcrumb": [
+    "Studio"
+  ],
+  "heading_anchors": {
+    "create an agentic workflow": "create-an-agentic-workflow",
+    "create multiple agents": "create-multiple-agents",
+    "define handoffs responsabilities": "define-handoffs-responsibilities",
+    "how it works": "how-it-works",
+    "output events": "output-events"
+  }
+}

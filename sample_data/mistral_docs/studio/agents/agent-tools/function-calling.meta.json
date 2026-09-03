@@ -1,0 +1,14 @@
+{
+  "url": "https://docs.mistral.ai/studio/agents/agent-tools/function-calling",
+  "title": "Function Calling",
+  "breadcrumb": [
+    "Studio",
+    "Agent Tools"
+  ],
+  "heading_anchors": {
+    "creating an agent": "creating-an-agent-with-function-calling",
+    "define the function": "define-the-function",
+    "using an agent": "using-an-agent-with-function-calling",
+    "return the function result": "return-result"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "url": "https://docs.mistral.ai/studio/agents/agent-tools/code_interpreter",
+  "title": "Code Interpreter",
+  "breadcrumb": [
+    "Studio",
+    "Agent Tools"
+  ],
+  "heading_anchors": {
+    "create a code interpreter agent": "create-a-code-interpreter-agent",
+    "how it works": "how-it-works",
+    "conversations with code interpreter": "conversation-with-code-interpreter",
+    "explanation of the output": "explanation-of-the-output"
+  }
+}

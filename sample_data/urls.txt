@@ -11,3 +11,11 @@ https://docs.mistral.ai/studio/conversations/structured-output
 https://docs.mistral.ai/studio/conversations/structured-output/custom
 https://docs.mistral.ai/studio/conversations/structured-output/json_mode
 https://docs.mistral.ai/studio/conversations/moderation
+https://docs.mistral.ai/studio/agents/introduction
+https://docs.mistral.ai/studio/agents/agents-api
+https://docs.mistral.ai/studio/agents/agent-tools
+https://docs.mistral.ai/studio/agents/agent-tools/websearch
+https://docs.mistral.ai/studio/agents/agent-tools/code_interpreter
+https://docs.mistral.ai/studio/agents/agent-tools/image_generation
+https://docs.mistral.ai/studio/agents/agent-tools/function-calling
+https://docs.mistral.ai/studio/agents/handoffs

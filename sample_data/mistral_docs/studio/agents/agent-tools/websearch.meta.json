@@ -1,0 +1,15 @@
+{
+  "url": "https://docs.mistral.ai/studio/agents/agent-tools/websearch",
+  "title": "Websearch",
+  "breadcrumb": [
+    "Studio",
+    "Agent Tools"
+  ],
+  "heading_anchors": {
+    "create a websearch agent": "create-a-websearch-agent",
+    "how it works": "how-it-works",
+    "conversations with websearch": "conversation-with-websearch",
+    "explanation of the output": "explanation-of-the-output",
+    "more": "more"
+  }
+}
