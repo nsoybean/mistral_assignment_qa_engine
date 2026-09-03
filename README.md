@@ -115,7 +115,9 @@ make search query="how do i handle thinking chunk"
 
 Ranking weights live in the Vespa query profile (`src/search_app/migrations/001_vespa_create_index_schema.py`), not in the search request.
 
-### Evaluate retrieval (citation ground truth)
+## Evaluation
+
+### Retrieval evaluation (citation ground truth)
 
 After ingest, score hybrid search against a golden set of queries → expected `citation_url`s:
 
@@ -156,6 +158,8 @@ Retrieve `top_k=10` so MRR can see ranks past 5; score Recall/Hit at 5.
 | Large | 1500 | 4000 | 200 | 104 | 0.889 | 0.889 | 0.718 |
 
 Heading-based splitting is the biggest contributor to retrieval quality. Size tuning validates the default — too small fragments code blocks, too large merges unrelated sections. See [`interview_notes.md`](interview_notes.md) for detailed findings.
+
+## Commands
 
 ### Run the tests
 
