@@ -31,6 +31,15 @@ load_dotenv(override=True)
 _TEXT_SUFFIXES = {".txt", ".md", ".markdown", ".csv", ".json"}
 
 
+def _is_docs_meta_sidecar(path: Path) -> bool:
+    """True for ``*.meta.json`` sidecars (not plain ``.json`` files).
+
+    ``Path.suffix`` on ``page.meta.json`` is ``.json``, so a suffix check alone
+    would still ingest metadata sidecars into Vespa.
+    """
+    return path.name.endswith(".meta.json")
+
+
 def _collect_documents(path: Path) -> list[Path]:
     if path.is_file():
         return [path]
@@ -87,7 +96,7 @@ async def main() -> None:
     )
 
     documents = [
-        p for p in _collect_documents(root) if p.suffix.lower() != ".meta.json"
+        p for p in _collect_documents(root) if not _is_docs_meta_sidecar(p)
     ]
 
     total_chunks = 0
