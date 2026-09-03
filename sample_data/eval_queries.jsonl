@@ -1,4 +1,4 @@
 {"query": "how do i handle thinking chunk", "citation_urls": ["https://docs.mistral.ai/studio/conversations/reasoning#handling-thinking-chunks"]}
-{"query": "how do i use a specific prompt registry version", "citation_urls": ["https://docs.mistral.ai/studio/conversations/chat-completion/prompt-registry#pinning-a-version"]}
+{"query": "template variable in prompt", "citation_urls": ["https://docs.mistral.ai/studio/conversations/chat-completion/prompt-registry#template-variables"]}
 {"query": "how do i use prompt registry fixed version and set reasoning to high", "citation_urls": ["https://docs.mistral.ai/studio/conversations/chat-completion/prompt-registry#pinning-a-version", "https://docs.mistral.ai/studio/conversations/reasoning#usage", "https://docs.mistral.ai/studio/conversations/reasoning#reasoning-with-chat-completions"]}
 {"query": "five steps of function calling", "citation_urls": ["https://docs.mistral.ai/studio/conversations/function-calling#five-steps"]}
