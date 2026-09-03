@@ -11,7 +11,7 @@
 {"query": "how do we set up tool call for rag?", "citation_urls": ["https://docs.mistral.ai/studio/conversations/citations#setup"]}
 {"query": "when is prompt caching ideal and how to enable it?", "citation_urls": ["https://docs.mistral.ai/studio/conversations/advanced/prompt-caching#when-to-use-prompt-caching", "https://docs.mistral.ai/studio/conversations/advanced/prompt-caching#use-prompt-cache-key"]}
 {"query": "how does cache token price compare to normal pricing?", "citation_urls": ["https://docs.mistral.ai/studio/conversations/advanced/prompt-caching#track-billing"]}
-{"query": "what are the types of tool choice settings?", "citation_urls": ["https://docs.mistral.ai/studio/conversations/function-calling#step-3"]}
+{"query": "how to specify how tools are used?", "citation_urls": ["https://docs.mistral.ai/studio/conversations/function-calling"]}
 {"query": "what must developers implement for function calling?", "citation_urls": ["https://docs.mistral.ai/studio/conversations/function-calling#step-4"]}
 {"query": "how to ensure structured output?", "citation_urls": ["https://docs.mistral.ai/studio/conversations/structured-output/custom"]}
 {"query": "what categories of content can be moderated?", "citation_urls": ["https://docs.mistral.ai/studio/conversations/moderation"]}
