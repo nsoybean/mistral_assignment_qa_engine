@@ -79,6 +79,10 @@ def test_isolate_article_strips_section_tabs_and_keeps_headings() -> None:
     assert "<h2" in article and "Multi-turn" in article
     assert 'id="multi-turn"' in article
     assert anchors["multi-turn"] == "multi-turn"
+    # Dark-theme twin dropped; light variant kept.
+    assert "print(\"dark\")" not in article
+    assert "print(\"light\")" in article
+    assert "dark:block" not in article
 
 
 def test_parse_docs_page_splits_on_headings_and_stamps_citation_urls() -> None:

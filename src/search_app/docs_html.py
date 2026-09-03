@@ -359,6 +359,27 @@ def _lift_section_headings(root: Tag) -> None:
         tab.decompose()
 
 
+def _drop_theme_duplicates(root: Tag) -> None:
+    """Drop dark-theme twins of code blocks and images; keep the light variant.
+
+    Studio ships each ``<pre>`` (and some images) twice:
+    ``hidden dark:block`` (dark) next to ``dark:hidden`` (light). Both contain the
+    same source, so indexing both doubles chunk size and tears examples off prose.
+    """
+    to_drop: list[Tag] = []
+    for tag in root.find_all(True):
+        classes = tag.get("class")
+        if not classes:
+            continue
+        class_set = set(classes)
+        if "hidden" in class_set and "dark:block" in class_set:
+            to_drop.append(tag)
+    for tag in to_drop:
+        # Ancestor may already have been removed; decomposed nodes have attrs=None.
+        if tag.attrs is not None:
+            tag.decompose()
+
+
 def isolate_article(
     html: str, page_url: str
 ) -> tuple[str, tuple[str, ...], str, dict[str, str]]:
@@ -370,7 +391,8 @@ def isolate_article(
     3. Remove on-page TOC (duplicates heading list).
     4. Lift sr-only headings out of section-tab divs, then remove those divs —
        stops "Chat messages" plain-text chunks that sit beside ``### Chat messages``.
-    5. Hand the result to ``HTMLExtractor`` (MarkdownifyConverter strips nav,
+    5. Drop dark-theme duplicate code/images (``hidden dark:block``), keep light.
+    6. Hand the result to ``HTMLExtractor`` (MarkdownifyConverter strips nav,
        script, footer, etc.).
     """
     soup = BeautifulSoup(html, "html.parser")
@@ -382,6 +404,7 @@ def isolate_article(
         node.decompose()
 
     _lift_section_headings(root)
+    _drop_theme_duplicates(root)
 
     h1 = root.find("h1")
     title = (
