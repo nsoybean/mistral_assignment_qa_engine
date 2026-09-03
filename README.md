@@ -136,7 +136,7 @@ make eval-retrieval
 ```
 
 - `query` — natural-language question
-- `citation_urls` — expected section deep links (use `make inspect-docs chunk_size=1` to find anchors)
+- `citation_urls` — expected page/ section deep links (use `make inspect-docs chunk_size=1` to find anchors)
 
 Matching is **hierarchical**: a page-level `citation_url` (no `#`) satisfies a section-level gold on the same page, so chunks that inherit the parent URL still count as hits.
 
