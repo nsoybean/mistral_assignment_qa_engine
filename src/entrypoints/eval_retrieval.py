@@ -26,12 +26,12 @@ from dotenv import load_dotenv
 from mistralai.search.toolkit.evals import (
     EvaluationDataset,
     EvaluationQuery,
+    EvaluationSummary,
     RetrieverEvaluator,
     RetrievalStepResult,
-    print_evaluation_summary,
     save_evaluation_summary_to_json,
 )
-from mistralai.search.toolkit.evals.models import generate_proxy
+from mistralai.search.toolkit.evals.models import RetrievalMetrics, generate_proxy
 
 from search_app import DEFAULT_QUERY_PROFILE
 from search_app.query import create_query_engine, get_collection_name, search
@@ -40,6 +40,46 @@ load_dotenv(override=True)
 
 _DEFAULT_DATASET = Path("sample_data/eval_queries.jsonl")
 _CITATION_METADATA_KEY = "citation_url"
+# Demo metrics only — enough to compare chunking configs without IR noise.
+_PRIMARY_K = 5
+_DEFAULT_K_VALUES = [_PRIMARY_K]
+
+
+def _gold_urls(eval_result) -> list[str]:
+    gold = eval_result.relevant_reference_ids or eval_result.relevant_ids
+    prefix = f"{_CITATION_METADATA_KEY}_"
+    return [g.removeprefix(prefix) if g.startswith(prefix) else g for g in gold]
+
+
+def _print_focused_summary(summary: EvaluationSummary, *, k: int = _PRIMARY_K) -> None:
+    metrics = summary.workflow_metrics_avg.get("hybrid")
+    print("\n" + "=" * 60)
+    print("RETRIEVAL EVAL (Hit rate / Recall@k / MRR)")
+    print("=" * 60)
+    print(f"Dataset: {summary.dataset_name}")
+    print(f"Queries: {summary.total_queries}")
+    if metrics is None:
+        print("No hybrid metrics.")
+        return
+    recall = metrics.recall_at_k.get(k)
+    print(f"Hit rate:  {metrics.hit_rate:.3f}" if metrics.hit_rate is not None else "Hit rate:  n/a")
+    print(f"Recall@{k}: {recall:.3f}" if recall is not None else f"Recall@{k}: n/a")
+    print(f"MRR:       {metrics.mrr:.3f}" if metrics.mrr is not None else "MRR:       n/a")
+    print("=" * 60)
+
+
+def _print_per_query(per_query, *, k: int = _PRIMARY_K) -> None:
+    print(f"\nPer-query (gold citation_url in top results):")
+    for eval_result in per_query:
+        metrics: RetrievalMetrics | None = eval_result.workflow_metrics.get("hybrid")
+        hit = metrics.hit_rate if metrics else None
+        mrr = metrics.mrr if metrics else None
+        recall = metrics.recall_at_k.get(k) if metrics else None
+        status = "HIT" if hit == 1.0 else "MISS"
+        recall_s = f"{recall:.2f}" if recall is not None else "n/a"
+        mrr_s = f"{mrr:.2f}" if mrr is not None else "n/a"
+        print(f"  [{status}] recall@{k}={recall_s}  mrr={mrr_s}  {eval_result.query!r}")
+        print(f"         gold={_gold_urls(eval_result)}")
 
 
 def _proxy_for_url(url: str) -> str:
@@ -150,22 +190,9 @@ async def _run(args: argparse.Namespace) -> None:
         max_concurrent_batches=1,
     )
 
-    print_evaluation_summary(summary)
-
-    print("\nPer-query hits (citation_url in top-k):")
-    for eval_result in per_query:
-        metrics = eval_result.workflow_metrics.get("hybrid")
-        hit = metrics.hit_rate if metrics else None
-        mrr = metrics.mrr if metrics else None
-        gold = eval_result.relevant_reference_ids or eval_result.relevant_ids
-        # Strip generate_proxy prefix for readable gold labels.
-        prefix = f"{_CITATION_METADATA_KEY}_"
-        gold_urls = [
-            g.removeprefix(prefix) if g.startswith(prefix) else g for g in gold
-        ]
-        status = "HIT" if hit == 1.0 else "MISS"
-        print(f"  [{status}] {eval_result.query!r}")
-        print(f"         gold={gold_urls}  mrr={mrr}")
+    primary_k = args.k_values[0] if args.k_values else _PRIMARY_K
+    _print_focused_summary(summary, k=primary_k)
+    _print_per_query(per_query, k=primary_k)
 
     if args.output:
         out = Path(args.output)
@@ -197,8 +224,8 @@ def main() -> None:
         "--k-values",
         type=int,
         nargs="+",
-        default=[1, 3, 5, 10],
-        help="k values for Recall@k / Precision@k / nDCG@k (default: 1 3 5 10)",
+        default=_DEFAULT_K_VALUES,
+        help=f"k for Recall@k (default: {_DEFAULT_K_VALUES}; first value is the reported Recall@k)",
     )
     parser.add_argument(
         "--query-profile",

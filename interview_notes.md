@@ -89,7 +89,7 @@ mcp:
 | `…prompt registry… and set reasoning to high` | prompt-registry + reasoning | Multi-hop / multi-page |
 | `five steps of function calling` | `function-calling#five-steps` | Structural heading match |
 
-**Metrics to watch when tuning chunk size / split level:** Hit rate, Recall@5, MRR (see README “Evaluate retrieval” for full metric definitions).
+**Metrics (Hit rate / Recall@5 / MRR only):** Hit = any gold section found; Recall@5 = all golds in top 5 (multi-hop); MRR = how high the first gold ranked. See README “Evaluate retrieval”.
 
 **Where I expect difficulty:**
 

@@ -135,25 +135,17 @@ make eval-retrieval
 - `query` — natural-language question (as a user would type it)
 - `citation_urls` — one or more gold section links (use `make inspect-docs chunk_size=1` to discover anchors). Page-level answers may omit `#anchor`.
 
-Matching uses chunk metadata `citation_url`.
+Matching uses chunk metadata `citation_url`, not chunk IDs, so labels stay valid across re-chunk / re-ingest.
 
-**Metrics** (from Search Toolkit `RetrieverEvaluator`; printed for the `hybrid` step):
+**Metrics we report** (intentionally just three — enough to compare chunking configs):
 
+| Metric | What it measures | Demo line |
+| ------ | ---------------- | --------- |
+| **Hit rate** | Share of queries where **at least one** gold `citation_url` appears in the retrieved set | “Did search find a useful section at all?” |
+| **Recall@5** | Share of gold citations found in the **top 5** hits (averaged over queries) | “For multi-hop labels, did we get *all* required sections?” |
+| **MRR** | Mean of `1/rank` of the **first** gold hit | “How high is the best citation?” (1.0 = always rank 1) |
 
-| Metric                           | What it measures                                                                      | How to read it                                                                 |
-| -------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| **Hit rate**                     | Fraction of queries where **at least one** gold citation appears in the retrieved set | “Did we find *something* useful?” — primary sanity check                       |
-| **Recall@k**                     | Fraction of gold citations found in the top-*k* hits, averaged over queries           | “Did we find *all* the right sections?” — critical for multi-hop               |
-| **Precision@k**                  | Fraction of the top-*k* hits that are gold                                            | High when results are focused; drops if top-*k* is large and gold set is small |
-| **F1@k**                         | Harmonic mean of Precision@k and Recall@k                                             | Balance of focus vs coverage at cutoff *k*                                     |
-| **MRR** (Mean Reciprocal Rank)   | Average of `1/rank` of the **first** gold hit                                         | “How high is the best citation?” — UX / citation quality                       |
-| **MAP** (Mean Average Precision) | Average precision across ranks, then averaged over queries                            | Ranking quality when several golds exist                                       |
-| **nDCG@k**                       | Discounted cumulative gain vs ideal ranking (binary relevance here)                   | Rewards putting relevant hits near the top                                     |
-| **Coverage**                     | Gold citations retrieved / gold citations labeled (over the full returned list)       | Same idea as recall over whatever `top_k` you requested                        |
-| **Perfect recall**               | Fraction of queries where **every** gold citation was retrieved                       | Strict multi-hop pass rate                                                     |
-
-
-Defaults report @1, @3, @5, @10. For chunk-size sweeps, compare **Hit rate**, **Recall@5**, and **MRR** first — they usually separate good vs over-fragmented configs clearly.
+We retrieve `top_k=10` by default so MRR can see ranks past 5; Recall is scored at 5 because that matches a typical answer context window. Other IR metrics (precision, nDCG, MAP, …) are available in the toolkit but omitted here on purpose.
 
 ### Run the tests
 
@@ -230,7 +222,7 @@ src/
 │   ├── preprocess_docs.py  # fetch docs.mistral.ai → sample_data/mistral_docs/
 │   ├── ingest.py           # ingest pipeline
 │   ├── inspect_docs.py     # preview markdown/chunks before ingest
-│   ├── eval_retrieval.py   # citation_url retrieval eval (Hit / Recall@k / MRR)
+│   ├── eval_retrieval.py   # citation_url eval → Hit rate / Recall@5 / MRR
 │   ├── search.py           # search
 │   └── mcp_server.py         # MCP server (search + navigation)
 └── search_app/
