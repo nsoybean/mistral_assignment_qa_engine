@@ -4,16 +4,19 @@
 
 Build a search-powered Q&A engine over Mistral's public documentation that returns accurate, grounded answers with links to the relevant source sections.
 
-This implementation prioritizes retrieval quality over corpus breadth:
+Core:
+- custom HTML extraction
+- heading-aware chunking pipeline
+- chunk enrichment
+- hybrid keyword and semantic retrieval in Vespa
+- MCP interface for external agents (agentic search)
+- produce answers with links to exact documentation sections.
 
-- 21 curated Studio documentation pages: 13 Conversations pages and 8 Agents pages
-- custom extraction for the structure of `docs.mistral.ai`
-- heading-aware chunks with section-level citation metadata
-- hybrid lexical and semantic retrieval in Vespa
-- retrieval and navigation tools exposed to an answering agent over MCP
-- an 18-query citation-based retrieval evaluation
-
-The repository owns document preparation, ingestion, retrieval, citation metadata, evaluation, and MCP tools. The final natural-language answer is synthesized by an MCP client such as Vibe or Claude Code.
+Implementation focuses on quality over breadth of documents ingested:
+- 21 documentation pages: 13 'Conversations' pages and 8 'Agents' pages
+- 18-query retrieval evaluation set
+- Section-level citation links where possible
+- 94.4% Hit Rate and Recall@5 with the selected chunking configuration
 
 ## End-to-end architecture
 
